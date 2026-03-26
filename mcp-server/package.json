@@ -1,0 +1,12 @@
+{
+  "name": "ovo-system-mcp-server",
+  "version": "1.0.0",
+  "description": "OvO System MCP Server - AI 操作物料管理系统的桥接层",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  }
+}
