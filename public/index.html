@@ -435,6 +435,15 @@
                         </div>
                     </div>
                     <router-view></router-view>
+                    <div class="mt-6 flex justify-end">
+                        <div class="inline-flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white/90 px-3 py-2 text-[11px] text-gray-500 shadow-sm">
+                            <span class="font-medium text-gray-700">前端版本</span>
+                            <span class="rounded bg-gray-100 px-2 py-0.5 text-gray-700">{{ buildInfo.version || 'loading' }}</span>
+                            <span class="text-gray-300">/</span>
+                            <span class="font-medium text-gray-700">Git</span>
+                            <span class="rounded bg-gray-100 px-2 py-0.5 text-gray-700">{{ buildInfo.gitCommit || 'loading' }}</span>
+                        </div>
+                    </div>
                 </main>
             </div>
 
@@ -11980,6 +11989,7 @@
             const showMobileSidebar = ref(false);
             const globalSearch = ref('');
             const globalSearchTrigger = ref(0);
+            const buildInfo = ref({ version: '', gitCommit: '' });
             const toasts = ref([]);
             let toastId = 0;
             const confirmState = ref({
@@ -12283,8 +12293,21 @@
                 lucide.createIcons();
             }
 
+            async function loadBuildInfo() {
+                try {
+                    const data = await api.get('/api/meta');
+                    buildInfo.value = {
+                        version: data.version || '',
+                        gitCommit: data.gitCommit || ''
+                    };
+                } catch (e) {
+                    buildInfo.value = { version: 'unknown', gitCommit: 'unknown' };
+                }
+            }
+
             // 初始化
             onMounted(() => {
+                loadBuildInfo();
                 checkAuth();
             });
 
@@ -12296,7 +12319,7 @@
             });
 
             return {
-                currentUser, sidebarCollapsed, showMobileSidebar, globalSearch, globalSearchOptions, toasts, menuItems,
+                currentUser, sidebarCollapsed, showMobileSidebar, globalSearch, globalSearchOptions, buildInfo, toasts, menuItems,
                 loginForm, loginLoading, loginError, showPassword,
                 currentPageTitle, currentPageSubtitle, showToast, removeToast,
                 canViewResource, canAction, isActiveRoute, roleLabel,

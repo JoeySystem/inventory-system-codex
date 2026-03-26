@@ -5,6 +5,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 
 // 加载环境变量
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
@@ -35,6 +36,25 @@ const bomRoutes = require('./routes/boms');
 const app = express();
 const PORT = process.env.PORT || 3000;
 let server = null;
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
+
+function getGitCommit() {
+    try {
+        return execSync('git rev-parse --short HEAD', {
+            cwd: path.join(__dirname, '..'),
+            stdio: ['ignore', 'pipe', 'ignore']
+        }).toString().trim();
+    } catch (err) {
+        return process.env.APP_GIT_COMMIT || 'unknown';
+    }
+}
+
+const appMeta = {
+    name: packageJson.name || 'ovo-system',
+    version: packageJson.version || '0.0.0',
+    gitCommit: getGitCommit(),
+    builtAt: new Date().toISOString()
+};
 
 function resolveTrustProxy(value) {
     if (value === undefined || value === null || value === '') {
@@ -192,6 +212,13 @@ app.get('/api/health', (req, res) => {
             data: { status: 'unhealthy', error: err.message }
         });
     }
+});
+
+app.get('/api/meta', (req, res) => {
+    res.json({
+        success: true,
+        data: appMeta
+    });
 });
 
 // ============================================
