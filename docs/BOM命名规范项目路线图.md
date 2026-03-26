@@ -4,9 +4,9 @@
 
 本路线图用于把以下 3 份文档收敛成一套便于项目管理的执行总纲：
 
-- [BOM命名规范承接与治理方案.md](/Users/Joey/CodexProjects/inventory-system-codex/docs/BOM命名规范承接与治理方案.md)
-- [BOM命名规范开发实施清单.md](/Users/Joey/CodexProjects/inventory-system-codex/docs/BOM命名规范开发实施清单.md)
-- [BOM命名规范验收Checklist.md](/Users/Joey/CodexProjects/inventory-system-codex/docs/BOM命名规范验收Checklist.md)
+- [BOM命名规范承接与治理方案.md](./BOM命名规范承接与治理方案.md)
+- [BOM命名规范开发实施清单.md](./BOM命名规范开发实施清单.md)
+- [BOM命名规范验收Checklist.md](./BOM命名规范验收Checklist.md)
 
 适用场景：
 

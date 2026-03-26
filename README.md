@@ -17,20 +17,8 @@
 
 ## 命名约定
 
-为了避免后续交接时混淆，当前统一使用下面两种叫法：
-
-- 仓库名：`OvO-Inventory-System`
-  - 指 GitHub 仓库名
-  - 当前地址：
-    - [https://github.com/JoeySystem/OvO-Inventory-System](https://github.com/JoeySystem/OvO-Inventory-System)
-- 本地目录名：`inventory-system-codex`
-  - 指历史开发过程中常见的本地目录名
-  - 这是本地目录名示例，不要求和 GitHub 仓库名完全一致
-
-后续文档里如果同时出现这两个名字，应理解为：
-
-- `OvO-Inventory-System` = 仓库/发布名
-- `inventory-system-codex` = 本地目录名示例或历史内部代号
+- 仓库正式名称：`OvO-Inventory-System`
+- 若旧文档中出现 `inventory-system-codex`，将其视为历史内部代号或本地目录名示例即可
 
 ## 项目定位
 

@@ -2,7 +2,7 @@
 
 ## 一、文档目的
 
-本清单用于把 [BOM命名规范承接与治理方案.md](/Users/Joey/CodexProjects/inventory-system-codex/docs/BOM命名规范承接与治理方案.md) 落成可执行开发任务。
+本清单用于把 [BOM命名规范承接与治理方案.md](./BOM命名规范承接与治理方案.md) 落成可执行开发任务。
 
 本清单强调两条原则：
 

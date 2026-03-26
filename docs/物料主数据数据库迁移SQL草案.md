@@ -2,7 +2,7 @@
 
 ## 1. 文档目的
 
-本文档提供“物料主数据改造”第一阶段的数据库迁移草案，用于指导 [schema.sql](/Users/Joey/CodexProjects/inventory-system-codex/server/db/schema.sql) 的扩展、迁移脚本编写和上线执行。
+本文档提供“物料主数据改造”第一阶段的数据库迁移草案，用于指导 [schema.sql](../server/db/schema.sql) 的扩展、迁移脚本编写和上线执行。
 
 本文档以 SQLite 为目标数据库，遵循当前项目技术栈。
 

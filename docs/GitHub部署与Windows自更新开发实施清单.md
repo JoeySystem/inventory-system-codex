@@ -2,7 +2,7 @@
 
 ## 1. 文档目的
 
-本文档用于把 [GitHub部署与Windows自更新方案.md](/Users/Joey/CodexProjects/inventory-system-codex/docs/GitHub部署与Windows自更新方案.md) 拆成可执行的开发任务清单，便于后续逐项落地、分工和跟踪。
+本文档用于把 [GitHub部署与Windows自更新方案.md](./GitHub部署与Windows自更新方案.md) 拆成可执行的开发任务清单，便于后续逐项落地、分工和跟踪。
 
 原则：
 
