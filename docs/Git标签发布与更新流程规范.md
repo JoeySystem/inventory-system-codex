@@ -1,6 +1,6 @@
 # Git 标签发布与更新流程规范
 
-本文用于统一 `inventory-system-codex` 的版本发布、更新、回滚流程。
+本文用于统一 `OvO-Inventory-System` 的版本发布、更新、回滚流程。
 
 ## 1. 目标
 

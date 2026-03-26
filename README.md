@@ -1,4 +1,4 @@
-# inventory-system-codex
+# OvO-Inventory-System
 
 面向生产型企业的物料管理系统，覆盖：
 
