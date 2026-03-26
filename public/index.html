@@ -23,6 +23,31 @@
     <style>
         [v-cloak] { display: none; }
 
+        .boot-status {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+        }
+
+        .boot-status.hidden {
+            display: none;
+        }
+
+        .boot-status-card {
+            width: 100%;
+            max-width: 520px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+            padding: 28px;
+        }
+
         /* 自定义滚动条 */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -72,6 +97,84 @@
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
+    <div id="boot-status" class="boot-status">
+        <div class="boot-status-card">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-100">
+                    <span class="text-indigo-600 text-xl font-bold">OvO</span>
+                </div>
+                <div>
+                    <h1 id="boot-status-title" class="text-lg font-semibold text-slate-900">系统正在加载</h1>
+                    <p class="text-sm text-slate-500">如果长时间停留在此界面，请检查本机静态资源和浏览器控制台。</p>
+                </div>
+            </div>
+            <div class="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div class="spinner mt-0.5"></div>
+                <div class="text-sm text-slate-700">
+                    <p id="boot-status-message">前端运行时正在初始化，请稍候。</p>
+                    <p class="mt-2 text-slate-500">常见原因：浏览器缓存未刷新、前端脚本加载失败、部署更新未完全覆盖静态文件。</p>
+                </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-3 text-sm">
+                <button type="button" onclick="window.location.reload()" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">重新加载</button>
+                <a href="/api/health" target="_blank" rel="noreferrer" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">打开健康检查</a>
+            </div>
+            <noscript>
+                <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    浏览器未启用 JavaScript，系统界面无法启动。
+                </div>
+            </noscript>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const bootStatus = document.getElementById('boot-status');
+            const bootTitle = document.getElementById('boot-status-title');
+            const bootMessage = document.getElementById('boot-status-message');
+            let bootResolved = false;
+
+            function setBootState(title, message, tone) {
+                if (!bootStatus || !bootTitle || !bootMessage) return;
+                bootTitle.textContent = title;
+                bootMessage.textContent = message;
+                if (tone === 'error') {
+                    bootStatus.querySelector('.boot-status-card')?.classList.add('border-red-200');
+                }
+            }
+
+            window.__ovoBoot = {
+                ready() {
+                    bootResolved = true;
+                    bootStatus?.classList.add('hidden');
+                },
+                fail(message) {
+                    bootResolved = true;
+                    setBootState('系统加载异常', message || '前端初始化失败，请刷新页面或检查部署静态资源。', 'error');
+                }
+            };
+
+            window.addEventListener('error', function (event) {
+                if (bootResolved) return;
+                const message = event?.message || '前端脚本加载失败，请检查浏览器控制台和静态资源。';
+                window.__ovoBoot.fail(message);
+            });
+
+            window.addEventListener('unhandledrejection', function (event) {
+                if (bootResolved) return;
+                const reason = event?.reason;
+                const message = reason && reason.message ? reason.message : '前端出现未处理的异步异常，请检查浏览器控制台。';
+                window.__ovoBoot.fail(message);
+            });
+
+            window.setTimeout(function () {
+                if (!bootResolved) {
+                    setBootState('系统加载较慢', '前端尚未完成初始化。如果持续停留，请检查浏览器缓存、部署更新状态或静态资源访问。');
+                }
+            }, 6000);
+        })();
+    </script>
+
     <div id="app" v-cloak>
         <!-- ========== Toast 消息提示 ========== -->
         <div class="fixed top-4 right-4 z-50 space-y-2">
@@ -12208,6 +12311,9 @@
     app.component('material-search-select', MaterialSearchSelect);
     app.use(router);
     app.mount('#app');
-    </script>
+    if (window.__ovoBoot && typeof window.__ovoBoot.ready === 'function') {
+        window.__ovoBoot.ready();
+    }
+</script>
 </body>
 </html>
