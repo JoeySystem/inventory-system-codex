@@ -652,7 +652,7 @@
         <div>
             <div class="flex flex-wrap gap-2 mb-6">
                 <span class="inline-flex items-center rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">风险层：低库存与异常优先处理</span>
-                <span class="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">动作层：收 / 发 / 生产执行入口</span>
+                <span class="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">动作层：入库 / 出库 / 生产执行入口</span>
                 <span class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">核算层：物料、仓库与库存价值概览</span>
                 <span class="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">管理层：最近动态与当日摘要</span>
             </div>
@@ -1029,7 +1029,7 @@
                             <span class="text-sm text-gray-600">生产工单与工艺</span>
                         </router-link>
                     </div>
-                    <p class="text-xs text-gray-400 mt-4">入口按动作语言组织，分别通向收、发与生产协同页面。</p>
+                    <p class="text-xs text-gray-400 mt-4">入口按业务动作组织，分别通向入库、出库与生产协同页面。</p>
                 </div>
                 <!-- 管理层 -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -1812,7 +1812,7 @@
         <div class="space-y-6">
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
                 <div class="text-sm font-semibold text-slate-800">当前页面说明</div>
-                <p class="text-sm text-slate-700 mt-1">仓库资料页已独立出来，这里只负责仓库主档维护，不承接收 / 发 / 转 / 盘执行动作。</p>
+                <p class="text-sm text-slate-700 mt-1">仓库资料页已独立出来，这里只负责仓库主档维护，不承接入库 / 出库 / 调拨 / 盘点执行动作。</p>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2024,19 +2024,18 @@
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">数量 <span class="text-red-500">*</span></label>
-                                    <input v-model.number="form.quantity" type="number" min="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <input v-model.number="form.quantity" @input="handleQuantityInput" type="number" min="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">单价 (¥)</label>
-                                    <input v-model.number="form.unitPrice" type="number" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <input v-model.number="form.unitPrice" @input="handleUnitPriceInput" type="number" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">总价 (¥)</label>
-                                    <div class="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-sm font-semibold text-gray-800">
-                                        {{ formTotalPrice === null ? '-' : '¥' + formTotalPrice.toFixed(2) }}
-                                    </div>
+                                    <input v-model.number="form.totalPrice" @input="handleTotalPriceInput" type="number" min="0" step="0.01" placeholder="可输入总价反算单价" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
                             </div>
+                            <div class="text-xs text-gray-400 -mt-1">支持双向联动：输入数量 + 单价自动计算总价，输入数量 + 总价也会自动反算单价。</div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -2402,10 +2401,13 @@
                     materialId: '',
                     quantity: 1,
                     unitPrice: null,
+                    totalPrice: null,
                     counterparty: '',
                     referenceNo: '',
                     notes: ''
                 });
+                const lastPriceEditedField = ref('unitPrice');
+                let syncingPriceFields = false;
 
                 const totalMovementQuantity = computed(() => {
                     return (movementSummary.value || []).reduce((sum, item) => sum + Number(item.total_qty || 0), 0);
@@ -2421,10 +2423,10 @@
                 const activeLoading = computed(() => viewMode.value === 'documents' ? loadingDocuments.value : loadingMovements.value);
                 const canExecute = computed(() => canAction ? canAction(config.permissionResource || 'warehouses', 'edit') : false);
                 const formTotalPrice = computed(() => {
-                    if (form.value.unitPrice === null || form.value.unitPrice === '' || Number.isNaN(Number(form.value.unitPrice))) {
+                    if (form.value.totalPrice === null || form.value.totalPrice === '' || Number.isNaN(Number(form.value.totalPrice))) {
                         return null;
                     }
-                    return Number(form.value.quantity || 0) * Number(form.value.unitPrice || 0);
+                    return Number(form.value.totalPrice);
                 });
                 const supplierOptions = computed(() => {
                     const seen = new Set();
@@ -2469,6 +2471,60 @@
                         offline: '线下',
                         other: '其他'
                     }[platform] || platform || '未标注平台');
+                }
+
+                function roundMoney(value) {
+                    if (!Number.isFinite(Number(value))) return null;
+                    return Math.round(Number(value) * 100) / 100;
+                }
+
+                function normalizeMoneyInput(value) {
+                    if (value === null || value === undefined || value === '') return null;
+                    const numeric = Number(value);
+                    if (!Number.isFinite(numeric)) return null;
+                    return roundMoney(numeric);
+                }
+
+                function syncTotalPriceFromUnitPrice() {
+                    const quantity = Number(form.value.quantity || 0);
+                    const unitPrice = normalizeMoneyInput(form.value.unitPrice);
+                    syncingPriceFields = true;
+                    try {
+                        form.value.unitPrice = unitPrice;
+                        form.value.totalPrice = unitPrice === null ? null : roundMoney(quantity * unitPrice);
+                    } finally {
+                        syncingPriceFields = false;
+                    }
+                }
+
+                function syncUnitPriceFromTotalPrice() {
+                    const quantity = Number(form.value.quantity || 0);
+                    const totalPrice = normalizeMoneyInput(form.value.totalPrice);
+                    syncingPriceFields = true;
+                    try {
+                        form.value.totalPrice = totalPrice;
+                        form.value.unitPrice = totalPrice === null || quantity <= 0 ? null : roundMoney(totalPrice / quantity);
+                    } finally {
+                        syncingPriceFields = false;
+                    }
+                }
+
+                function handleUnitPriceInput() {
+                    lastPriceEditedField.value = 'unitPrice';
+                    syncTotalPriceFromUnitPrice();
+                }
+
+                function handleTotalPriceInput() {
+                    lastPriceEditedField.value = 'totalPrice';
+                    syncUnitPriceFromTotalPrice();
+                }
+
+                function handleQuantityInput() {
+                    if (lastPriceEditedField.value === 'totalPrice') {
+                        syncUnitPriceFromTotalPrice();
+                    } else {
+                        syncTotalPriceFromUnitPrice();
+                    }
                 }
 
                 function createDefaultFilters() {
@@ -2612,6 +2668,12 @@
                 }
 
                 function buildDocumentPayload() {
+                    const quantity = Number(form.value.quantity || 0);
+                    const explicitUnitPrice = normalizeMoneyInput(form.value.unitPrice);
+                    const explicitTotalPrice = normalizeMoneyInput(form.value.totalPrice);
+                    const finalUnitPrice = explicitUnitPrice !== null
+                        ? explicitUnitPrice
+                        : (explicitTotalPrice !== null && quantity > 0 ? roundMoney(explicitTotalPrice / quantity) : null);
                     return {
                         docType: config.docType,
                         warehouseId: Number(form.value.warehouseId),
@@ -2620,8 +2682,8 @@
                         notes: form.value.notes,
                         items: [{
                             materialId: Number(form.value.materialId),
-                            quantity: Number(form.value.quantity),
-                            unitPrice: form.value.unitPrice
+                            quantity,
+                            unitPrice: finalUnitPrice
                         }]
                     };
                 }
@@ -2743,6 +2805,7 @@
                         materialId: '',
                         quantity: 1,
                         unitPrice: null,
+                        totalPrice: null,
                         counterparty: '',
                         referenceNo: '',
                         notes: ''
@@ -2787,6 +2850,7 @@
                         materialId: document.items?.[0]?.materialId ? String(document.items[0].materialId) : '',
                         quantity: Number(document.items?.[0]?.quantity || 1),
                         unitPrice: document.items?.[0]?.unitPrice ?? null,
+                        totalPrice: document.items?.[0]?.totalPrice ?? ((document.items?.[0]?.unitPrice ?? null) !== null ? roundMoney(Number(document.items?.[0]?.quantity || 0) * Number(document.items?.[0]?.unitPrice || 0)) : null),
                         counterparty: document.counterparty || '',
                         referenceNo: document.documentNo || '',
                         notes: document.notes || ''
@@ -2914,6 +2978,10 @@
                     await loadMaterialCounterpartyOptions();
                     await refreshSnapshot();
                 });
+                watch(() => form.value.quantity, () => {
+                    if (syncingPriceFields) return;
+                    handleQuantityInput();
+                });
                 onMounted(async () => {
                     await loadOptions();
                     applyRoutePrefill();
@@ -2926,7 +2994,7 @@
 
                 return {
                     config, warehouses, materials, stockSnapshot, lastSubmittedDoc, editingDocumentId, selectedDocument, viewMode, movementItems, movementSummary, movementPagination, documentPagination, loadingMovements, loadingDocuments, activePagination, activeLoading, canExecute,
-                    documentItems, documentStatusCards, totalMovementQuantity, rangeLabel, filterSummaryLabel, filters, form, formError, submitting, saveDraft, submitDocumentForm, submitAndPostDocumentForm, changeDocumentStatus, editDraftDocument, formatDocumentStatus, documentStatusClass, resetForm, applyFilters, resetFilters, changePage, setViewMode, selectDocument, exportMovements, exportDocument, printDocument, formTotalPrice, supplierOptions
+                    documentItems, documentStatusCards, totalMovementQuantity, rangeLabel, filterSummaryLabel, filters, form, formError, submitting, saveDraft, submitDocumentForm, submitAndPostDocumentForm, changeDocumentStatus, editDraftDocument, formatDocumentStatus, documentStatusClass, resetForm, applyFilters, resetFilters, changePage, setViewMode, selectDocument, exportMovements, exportDocument, printDocument, formTotalPrice, supplierOptions, handleUnitPriceInput, handleTotalPriceInput, handleQuantityInput
                 };
             }
         };
@@ -4487,7 +4555,7 @@
     };
 
     const ReceiveWorkbenchPage = createWorkbenchPage({
-        title: '收',
+        title: '入库',
         icon: 'inbox',
         description: '统一承接采购收货、完工入库、退料回库等库存增加动作。',
         highlights: ['采购收货', '完工入库', '退料回库'],
@@ -4519,7 +4587,7 @@
     });
 
     const IssueWorkbenchPage = createWorkbenchPage({
-        title: '发',
+        title: '出库',
         icon: 'send',
         description: '统一承接销售发货、生产领料、样机借出、报废出库等库存减少动作。',
         highlights: ['销售发货', '生产领料', '手工出库'],
@@ -4558,7 +4626,7 @@
     });
 
     const TransferWorkbenchPage = createWorkbenchPage({
-        title: '转',
+        title: '调拨',
         icon: 'arrow-right-left',
         description: '统一处理仓间调拨、车间转仓、线边仓补料和回仓等位置变化动作。',
         highlights: ['仓间调拨', '车间转仓', '线边仓回仓'],
@@ -4587,7 +4655,7 @@
     });
 
     const CountWorkbenchPage = createWorkbenchPage({
-        title: '盘',
+        title: '盘点',
         icon: 'clipboard-check',
         description: '统一承接盘点、盘盈盘亏、报废差异与库存调整等校正动作。',
         highlights: ['盘点任务', '差异复核', '库存调整'],
@@ -4663,13 +4731,13 @@
         description: '统一承接经营分析、库存核算、动作报表和生产分析，形成管理层的数据出口。',
         highlights: ['动作趋势', '进销存核算', '生产分析'],
         scenarios: [
-            { title: '动作趋势分析', description: '查看收、发、转、盘及相关执行趋势，定位异常动作。' },
+            { title: '库存动作趋势分析', description: '查看入库、出库、调拨、盘点及相关执行趋势，定位异常动作。' },
             { title: '库存核算报表', description: '查看库存余额、库存价值、动作流水与正式导出报表。' },
             { title: '经营层发货分析', description: '查看销售发货趋势、热销物料和客户排行。' }
         ],
         plannedDocs: [
             { name: '动作报表', description: '当前已可通过动作流水与分析看板输出执行类报表。', stage: '当前可用' },
-            { name: '进销存核算报表', description: '当前已可通过正式报表查看库存余额、价值与核算结果。', stage: '当前可用' },
+            { name: '进销存核算报表', description: '当前已可通过业务报表查看库存余额、价值与核算结果。', stage: '当前可用' },
             { name: '生产分析报表', description: '当前已有部分生产分析内容，仍在分析看板和报表中分散承接。', stage: '已实现但非独立入口' }
         ],
         groups: [
@@ -4681,11 +4749,11 @@
                 ]
             },
             {
-                title: '正式报表',
+                title: '业务报表',
                 description: '偏核算和导出，用于对账、汇报和沉淀正式口径。',
                 cards: [
-                    { path: '/reports', label: '正式报表', tagline: '核算入口', icon: 'file-text', permission: 'reports', stage: '当前可用', description: '用于查看库存余额、库存价值、销售发货分析和动作类正式报表。' },
-                    { path: '/consistency-governance', label: '一致性治理', tagline: '治理入口', icon: 'shield-check', permission: 'reports', stage: '当前可用', description: '可直接查看负库存、余额/流水不一致和历史基线问题。' }
+                    { path: '/reports', label: '业务报表', tagline: '核算入口', icon: 'file-text', permission: 'reports', stage: '当前可用', description: '用于查看库存余额、库存价值、销售发货分析和动作类业务报表。' },
+                    { path: '/consistency-governance', label: '数据治理', tagline: '治理入口', icon: 'shield-check', permission: 'reports', stage: '当前可用', description: '可直接查看负库存、余额/流水不一致和历史基线问题。' }
                 ]
             }
         ],
@@ -4731,7 +4799,7 @@
         <div>
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
                 <div class="text-sm font-semibold text-slate-800">当前页面说明</div>
-                <p class="text-sm text-slate-700 mt-1">物料页属于“主数据与规则层”，继续作为收 / 发 / 转 / 盘、BOM、SOP 与生产工单共同引用的统一主档入口。</p>
+                <p class="text-sm text-slate-700 mt-1">物料页属于“主数据与规则层”，继续作为入库 / 出库 / 调拨 / 盘点、BOM、SOP 与生产工单共同引用的统一主档入口。</p>
             </div>
             <!-- 操作栏 -->
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mb-6">
@@ -6855,11 +6923,11 @@
         <div>
             <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
                 <div class="text-sm font-semibold text-amber-800">当前页面说明</div>
-                <p class="text-sm text-amber-700 mt-1">当前页面仅作为过渡入口保留。新录单与新维护建议分别进入“仓库资料”和“收 / 发 / 转 / 盘”独立执行页。</p>
+                <p class="text-sm text-amber-700 mt-1">当前页面仅作为过渡入口保留。新录单与新维护建议分别进入“仓库资料”和“入库 / 出库 / 调拨 / 盘点”独立页面。</p>
             </div>
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
                 <div class="text-sm font-semibold text-gray-800">当前使用建议</div>
-                <p class="text-sm text-gray-500 mt-1">仓库资料与执行动作已分开。新录单请优先使用“仓库资料”、“收货入库执行”、“发料出库执行”、“仓间调拨执行”、“盘点调整执行”。当前页仅作为过渡入口保留。</p>
+                <p class="text-sm text-gray-500 mt-1">仓库资料与执行动作已分开。新录单请优先使用“仓库资料”、“收货入库”、“发料出库”、“仓间调拨”、“盘点调整”。当前页仅作为过渡入口保留。</p>
                 <div class="flex flex-wrap gap-2 mt-3">
                     <router-link to="/warehouse-master" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm text-slate-700 transition">仓库资料</router-link>
                     <router-link to="/receive-execute" class="px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-sm text-emerald-700 transition">收货入库执行</router-link>
@@ -6900,7 +6968,7 @@
                 </div>
                 <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
                     <div class="text-sm font-semibold text-emerald-800">执行动作区</div>
-                    <p class="text-sm text-emerald-700 mt-1">当前卡片中的库存动作按钮用于承接过渡期的收、发、转、盘执行入口。</p>
+                    <p class="text-sm text-emerald-700 mt-1">当前卡片中的库存动作按钮用于承接过渡期的入库、出库、调拨、盘点入口。</p>
                 </div>
             </div>
 
@@ -6986,10 +7054,10 @@
             <div v-if="showStockModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showStockModal = false">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-1">{{ stockWarehouse?.name }}</h3>
-                    <p class="text-sm text-gray-400 mb-3">过渡期执行入口已收口到新单据页。当前页面不再直接记账，请进入“收 / 发”执行页录单并走正式状态流转。</p>
+                    <p class="text-sm text-gray-400 mb-3">过渡期执行入口已收口到新单据页。当前页面不再直接记账，请进入“入库 / 出库”页面录单并走正式状态流转。</p>
                     <div class="flex gap-2 mb-4">
-                        <button @click="stockType = 'in'" :class="stockType === 'in' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-3 py-1.5 rounded-lg text-sm transition">收 / 入库</button>
-                        <button @click="stockType = 'out'" :class="stockType === 'out' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-3 py-1.5 rounded-lg text-sm transition">发 / 出库</button>
+                        <button @click="stockType = 'in'" :class="stockType === 'in' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-3 py-1.5 rounded-lg text-sm transition">入库</button>
+                        <button @click="stockType = 'out'" :class="stockType === 'out' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-3 py-1.5 rounded-lg text-sm transition">出库</button>
                     </div>
                     <div class="space-y-4">
                         <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
@@ -7120,7 +7188,7 @@
         <div>
             <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6">
                 <div class="text-sm font-semibold text-emerald-800">当前页面说明</div>
-                <p class="text-sm text-emerald-700 mt-1">当前页面就是“发 > 销售发货”的正式入口，可直接录入、查询和管理发货单。</p>
+                <p class="text-sm text-emerald-700 mt-1">当前页面就是“出库 > 销售发货”的正式入口，可直接录入、查询和管理发货单。</p>
             </div>
             <!-- 操作栏 -->
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
@@ -7810,7 +7878,7 @@
                 <p class="text-sm text-sky-700 mt-1">当前页面已归属到“报表 > 数据统计”，后续将扩展动作趋势、生产分析和经营分析看板。</p>
             </div>
             <div class="flex flex-wrap gap-2 mb-6">
-                <span class="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">动作层：收 / 发 趋势与排行</span>
+                <span class="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">动作层：入库 / 出库趋势与排行</span>
                 <span class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">核算层：库存价值与仓库对比</span>
                 <span class="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">管理层：经营与执行总览</span>
             </div>
@@ -7875,7 +7943,7 @@
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-6">
                 <div class="flex items-center gap-2 mb-3">
                     <span class="inline-flex rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700">动作层</span>
-                    <h3 class="text-sm font-semibold text-gray-700">收 / 发 动作趋势（默认仅统计正常动作）</h3>
+                    <h3 class="text-sm font-semibold text-gray-700">入库 / 出库趋势（默认仅统计正常动作）</h3>
                 </div>
                 <div class="flex flex-wrap gap-4 text-xs text-gray-500 mb-3">
                     <span>正常收：{{ summary.totalIn || 0 }}</span>
@@ -8220,11 +8288,11 @@
         <div>
             <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-6">
                 <div class="text-sm font-semibold text-indigo-800">当前页面说明</div>
-                <p class="text-sm text-indigo-700 mt-1">当前页面已归属到“报表 > 正式报表”，可直接查看库存余额、库存价值、动作报表与导出结果。</p>
+                <p class="text-sm text-indigo-700 mt-1">当前页面已归属到“报表 > 业务报表”，可直接查看库存余额、库存价值、动作报表与导出结果。</p>
             </div>
             <div class="flex flex-wrap gap-2 mb-6">
                 <span class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">核算层：库存余额与价值</span>
-                <span class="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">动作层：收 / 发 / 转 / 盘流水</span>
+                <span class="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">动作层：入库 / 出库 / 调拨 / 盘点流水</span>
                 <span class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">经营层：销售发货分析</span>
             </div>
 
@@ -8981,7 +9049,7 @@
             <!-- 动作流水 -->
             <div v-if="activeTab === 'movements'" class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                    <p class="text-xs text-gray-400 mb-2">动作口径：展示收 / 发 / 转 / 盘四类库存流水，不直接等同于经营层进销存结果。</p>
+                    <p class="text-xs text-gray-400 mb-2">动作口径：展示入库 / 出库 / 调拨 / 盘点四类库存流水，不直接等同于经营层进销存结果。</p>
                     <div class="flex gap-4 text-sm">
                         <span v-for="s in movementReport.summary" :key="s.type" class="flex items-center gap-1">
                             <span :class="s.type==='in' ? 'text-emerald-600' : s.type==='out' ? 'text-orange-600' : 'text-blue-600'" class="font-medium">
@@ -9816,27 +9884,27 @@
                         <span>/</span>
                         <button @click="goToReports"
                                 class="hover:text-indigo-600 transition">
-                            正式报表
+                            业务报表
                         </button>
                         <span>/</span>
                         <button @click="goToConsistencyGovernance"
                                 class="hover:text-indigo-600 transition">
-                            一致性治理
+                            数据治理
                         </button>
                         <span>/</span>
                         <span class="font-medium text-slate-700">动作流水</span>
                     </div>
-                    <p class="text-xs text-slate-400 mt-2">如果你是从一致性治理进入，这里会保留当前问题对应的仓库和物料筛选。</p>
+                    <p class="text-xs text-slate-400 mt-2">如果你是从数据治理进入，这里会保留当前问题对应的仓库和物料筛选。</p>
                 </div>
             </div>
 
             <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
                 <div class="text-sm font-semibold text-orange-800">独立动作流水页</div>
-                <p class="text-sm text-orange-700 mt-1">用于从一致性治理、执行追溯等场景直接跳转查看库存动作流水，不再依赖正式报表页内部切换标签。</p>
+                <p class="text-sm text-orange-700 mt-1">用于从数据治理、执行追溯等场景直接跳转查看库存动作流水，不再依赖业务报表页内部切换标签。</p>
             </div>
 
             <div class="flex flex-wrap gap-2 mb-6">
-                <span class="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">动作层：收 / 发 / 转 / 盘流水</span>
+                <span class="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700">动作层：入库 / 出库 / 调拨 / 盘点流水</span>
                 <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">独立路由：便于从问题治理直接跳转</span>
             </div>
 
@@ -9879,7 +9947,7 @@
 
             <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                    <p class="text-xs text-gray-400 mb-2">动作口径：展示收 / 发 / 转 / 盘四类库存流水，不直接等同于经营层进销存结果。</p>
+                    <p class="text-xs text-gray-400 mb-2">动作口径：展示入库 / 出库 / 调拨 / 盘点四类库存流水，不直接等同于经营层进销存结果。</p>
                     <div class="flex flex-wrap gap-4 text-sm">
                         <span v-for="s in movementReport.summary" :key="s.type" class="flex items-center gap-1">
                             <span :class="s.type==='in' ? 'text-emerald-600' : s.type==='out' ? 'text-orange-600' : 'text-blue-600'" class="font-medium">
@@ -11209,7 +11277,7 @@
         <div>
             <div class="bg-violet-50 border border-violet-200 rounded-xl p-4 mb-6">
                 <div class="text-sm font-semibold text-violet-800">当前页面说明</div>
-                <p class="text-sm text-violet-700 mt-1">SOP 已归属到“生产”域，当前页面继续负责工艺定义，不直接承担收发转盘动作。</p>
+                <p class="text-sm text-violet-700 mt-1">SOP 已归属到“生产”域，当前页面继续负责工艺定义，不直接承担入库、出库、调拨、盘点动作。</p>
             </div>
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
@@ -12707,7 +12775,7 @@
         <div>
             <div class="bg-fuchsia-50 border border-fuchsia-200 rounded-xl p-4 mb-6">
                 <div class="text-sm font-semibold text-fuchsia-800">当前页面说明</div>
-                <p class="text-sm text-fuchsia-700 mt-1">BOM 已归属到“生产”域，当前页面继续负责结构定义，不直接承担收发转盘动作。</p>
+                <p class="text-sm text-fuchsia-700 mt-1">BOM 已归属到“生产”域，当前页面继续负责结构定义，不直接承担入库、出库、调拨、盘点动作。</p>
             </div>
             <div v-if="issueFromBomMode" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
                 <div class="flex items-start justify-between gap-4">
@@ -14265,23 +14333,23 @@
         { path: '/issue-execute', component: IssueExecutionPage, meta: { title: '发料出库执行', subtitle: '统一承接手工出库与补充发料动作' } },
         { path: '/transfer-execute', component: TransferExecutionPage, meta: { title: '仓间调拨执行', subtitle: '独立承接仓间调拨与位置变化动作' } },
         { path: '/count-execute', component: CountExecutionPage, meta: { title: '盘点调整执行', subtitle: '独立承接盘点校正与库存调整动作' } },
-        { path: '/receive', component: ReceiveWorkbenchPage, meta: { title: '收', subtitle: '动作工作台：统一承接入库与回库场景' } },
-        { path: '/issue', component: IssueWorkbenchPage, meta: { title: '发', subtitle: '动作工作台：统一承接发货、领料与出库场景' } },
-        { path: '/transfer', component: TransferWorkbenchPage, meta: { title: '转', subtitle: '动作工作台：统一承接调拨与位置变化场景' } },
-        { path: '/count', component: CountWorkbenchPage, meta: { title: '盘', subtitle: '动作工作台：统一承接盘点、差异与调整场景' } },
+        { path: '/receive', component: ReceiveWorkbenchPage, meta: { title: '入库', subtitle: '业务入口：统一承接采购收货、回库与入库场景' } },
+        { path: '/issue', component: IssueWorkbenchPage, meta: { title: '出库', subtitle: '业务入口：统一承接发货、领料与出库场景' } },
+        { path: '/transfer', component: TransferWorkbenchPage, meta: { title: '调拨', subtitle: '业务入口：统一承接调拨与位置变化场景' } },
+        { path: '/count', component: CountWorkbenchPage, meta: { title: '盘点', subtitle: '业务入口：统一承接盘点、差异与调整场景' } },
         { path: '/manufacturing', component: ProductionWorkbenchPage, meta: { title: '生产', subtitle: '生产域入口：统一管理工单、SOP 与 BOM' } },
         { path: '/reporting', component: ReportingWorkbenchPage, meta: { title: '报表', subtitle: '统一查看分析看板、核算报表与生产分析' } },
-        { path: '/consistency-governance', component: ReportsPage, meta: { title: '一致性治理', subtitle: '直接查看库存一致性问题明细、治理建议与导出结果' } },
+        { path: '/consistency-governance', component: ReportsPage, meta: { title: '数据治理', subtitle: '直接查看库存一致性问题明细、治理建议与导出结果' } },
         { path: '/report-movements', component: MovementReportsPage, meta: { title: '动作流水', subtitle: '独立查看库存动作流水、筛选与导出' } },
         { path: '/system-center', component: SystemWorkbenchPage, meta: { title: '系统', subtitle: '基础资料、仓库配置与用户权限入口' } },
-        { path: '/warehouses', component: WarehousesPage, meta: { title: '仓库资料与执行', subtitle: '过渡入口：建议优先使用仓库资料与收发转盘独立页面' } },
+        { path: '/warehouses', component: WarehousesPage, meta: { title: '仓库资料与执行', subtitle: '过渡入口：建议优先使用仓库资料与入库、出库、调拨、盘点独立页面' } },
         { path: '/shipments', component: ShipmentsPage, meta: { title: '销售发货', subtitle: '发模块的正式发货入口' } },
         { path: '/statistics', component: StatisticsPage, meta: { title: '分析看板', subtitle: '报表模块的总览与趋势入口' } },
-        { path: '/reports', component: ReportsPage, meta: { title: '正式报表', subtitle: '报表模块的核算、导出与治理入口' } },
+        { path: '/reports', component: ReportsPage, meta: { title: '业务报表', subtitle: '报表模块的核算、导出与治理入口' } },
         { path: '/purchase-receipts', component: PurchaseReceiptDocumentsPage, meta: { title: '采购收货单', subtitle: '独立查询采购收货、手工入库与回库单据' } },
         { path: '/inventory-adjustments', component: InventoryAdjustmentDocumentsPage, meta: { title: '库存调整单', subtitle: '独立查询盘盈盘亏、报废差异与库存调整单据' } },
-        { path: '/sops', component: SOPsPage, meta: { title: 'SOP工艺', subtitle: '生产模块中的工艺定义入口' } },
-        { path: '/boms', component: BOMsPage, meta: { title: 'BOM结构', subtitle: '生产模块中的结构定义入口' } },
+        { path: '/sops', component: SOPsPage, meta: { title: 'SOP管理', subtitle: '生产模块中的工艺定义入口' } },
+        { path: '/boms', component: BOMsPage, meta: { title: 'BOM管理', subtitle: '生产模块中的结构定义入口' } },
         { path: '/production', component: ProductionPage, meta: { title: '生产工单', subtitle: '生产模块中的工单执行入口' } },
         { path: '/production-issue-docs', component: ProductionIssueDocumentsPage, meta: { title: '生产领料单', subtitle: '独立查询工单领料单据、状态与来源工单' } },
         { path: '/production-receipt-docs', component: ProductionReceiptDocumentsPage, meta: { title: '完工入库单', subtitle: '独立查询工单完工入库单据、状态与来源工单' } },
@@ -14342,11 +14410,11 @@
                 { path: '/', label: '仪表盘', icon: 'layout-dashboard', permission: null },
                 { group: '业务' },
                 { path: '/materials', label: '物料', icon: 'package', permission: 'materials' },
-                { path: '/receive', label: '收', icon: 'inbox', permission: ['warehouses', 'production'] },
+                { path: '/receive', label: '入库', icon: 'inbox', permission: ['warehouses', 'production'] },
                 { path: '/purchase-receipts', label: '采购收货单', icon: 'clipboard-list', permission: 'receive', secondary: true },
-                { path: '/issue', label: '发', icon: 'send', permission: ['shipments', 'production', 'warehouses'] },
-                { path: '/transfer', label: '转', icon: 'arrow-right-left', permission: ['warehouses', 'production'] },
-                { path: '/count', label: '盘', icon: 'clipboard-check', permission: ['warehouses', 'reports'] },
+                { path: '/issue', label: '出库', icon: 'send', permission: ['shipments', 'production', 'warehouses'] },
+                { path: '/transfer', label: '调拨', icon: 'arrow-right-left', permission: ['warehouses', 'production'] },
+                { path: '/count', label: '盘点', icon: 'clipboard-check', permission: ['warehouses', 'reports'] },
                 { path: '/inventory-adjustments', label: '库存调整单', icon: 'files', permission: 'count', secondary: true },
                 { path: '/manufacturing', label: '生产', icon: 'factory', permission: ['production', 'sops', 'boms'] },
                 { path: '/production', label: '生产工单', icon: 'clipboard-check', permission: 'production', secondary: true },
@@ -14354,13 +14422,13 @@
                 { path: '/production-receipt-docs', label: '完工入库单', icon: 'package-check', permission: 'production', secondary: true },
                 { path: '/production-return-docs', label: '退料回库单', icon: 'undo-2', permission: 'production', secondary: true },
                 { path: '/production-exceptions', label: '生产异常单', icon: 'triangle-alert', permission: 'production', secondary: true },
-                { path: '/sops', label: 'SOP工艺', icon: 'list-checks', permission: 'sops', secondary: true },
-                { path: '/boms', label: 'BOM结构', icon: 'git-branch-plus', permission: 'boms', secondary: true },
+                { path: '/sops', label: 'SOP管理', icon: 'list-checks', permission: 'sops', secondary: true },
+                { path: '/boms', label: 'BOM管理', icon: 'git-branch-plus', permission: 'boms', secondary: true },
                 { path: '/reporting', label: '报表', icon: 'bar-chart-3', permission: ['statistics', 'reports'] },
                 { path: '/statistics', label: '分析看板', icon: 'chart-column', permission: 'statistics', secondary: true },
-                { path: '/reports', label: '正式报表', icon: 'file-text', permission: 'reports', secondary: true },
+                { path: '/reports', label: '业务报表', icon: 'file-text', permission: 'reports', secondary: true },
                 { path: '/report-movements', label: '动作流水', icon: 'list-ordered', permission: 'reports', secondary: true },
-                { path: '/consistency-governance', label: '一致性治理', icon: 'shield-check', permission: 'reports', secondary: true },
+                { path: '/consistency-governance', label: '数据治理', icon: 'shield-check', permission: 'reports', secondary: true },
                 { group: '系统' },
                 { path: '/system-center', label: '系统', icon: 'settings-2', permission: ['warehouses', 'users'] },
             ];
@@ -14558,12 +14626,12 @@
                 ];
 
                 const routeMatchers = [
-                    { path: '/receive', badge: '动作层', badgeClass: 'bg-emerald-50 text-emerald-700', label: '进入收', description: '采购收货、完工入库、退料回库', patterns: ['收', '入库', '采购', '收货', '完工', '退料'] },
-                    { path: '/issue', badge: '动作层', badgeClass: 'bg-amber-50 text-amber-700', label: '进入发', description: '销售发货、生产领料、手工出库', patterns: ['发', '出库', '发货', '领料', '销售', '借出'] },
-                    { path: '/transfer', badge: '动作层', badgeClass: 'bg-cyan-50 text-cyan-700', label: '进入转', description: '调拨、转仓、线边仓补料与回仓', patterns: ['转', '调拨', '转仓', '补料', '回仓'] },
-                    { path: '/count', badge: '动作层', badgeClass: 'bg-rose-50 text-rose-700', label: '进入盘', description: '盘点、差异复核、库存调整', patterns: ['盘', '盘点', '调整', '差异', '报废'] },
-                    { path: '/manufacturing', badge: '生产域', badgeClass: 'bg-purple-50 text-purple-700', label: '进入生产', description: '生产工单、SOP 工艺与 BOM 结构', patterns: ['生产', '工单', 'sop', 'bom', '工艺', '结构'] },
-                    { path: '/reporting', badge: '报表', badgeClass: 'bg-sky-50 text-sky-700', label: '进入报表', description: '分析看板、正式报表、库存价值与销售分析', patterns: ['报表', '统计', '分析', '库存价值', '排行', '趋势'] },
+                    { path: '/receive', badge: '动作层', badgeClass: 'bg-emerald-50 text-emerald-700', label: '进入入库', description: '采购收货、完工入库、退料回库', patterns: ['收', '入库', '采购', '收货', '完工', '退料'] },
+                    { path: '/issue', badge: '动作层', badgeClass: 'bg-amber-50 text-amber-700', label: '进入出库', description: '销售发货、生产领料、手工出库', patterns: ['发', '出库', '发货', '领料', '销售', '借出'] },
+                    { path: '/transfer', badge: '动作层', badgeClass: 'bg-cyan-50 text-cyan-700', label: '进入调拨', description: '调拨、转仓、线边仓补料与回仓', patterns: ['转', '调拨', '转仓', '补料', '回仓'] },
+                    { path: '/count', badge: '动作层', badgeClass: 'bg-rose-50 text-rose-700', label: '进入盘点', description: '盘点、差异复核、库存调整', patterns: ['盘', '盘点', '调整', '差异', '报废'] },
+                    { path: '/manufacturing', badge: '生产域', badgeClass: 'bg-purple-50 text-purple-700', label: '进入生产', description: '生产工单、SOP 管理与 BOM 管理', patterns: ['生产', '工单', 'sop', 'bom', '工艺', '结构'] },
+                    { path: '/reporting', badge: '报表', badgeClass: 'bg-sky-50 text-sky-700', label: '进入报表', description: '分析看板、业务报表、库存价值与销售分析', patterns: ['报表', '统计', '分析', '库存价值', '排行', '趋势'] },
                     { path: '/system-center', badge: '系统', badgeClass: 'bg-slate-50 text-slate-700', label: '进入系统', description: '仓库资料、用户与权限配置', patterns: ['系统', '用户', '权限', '仓库资料', '配置'] }
                 ];
 
