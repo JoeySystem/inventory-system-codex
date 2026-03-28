@@ -19,7 +19,7 @@ const { getDB } = require('../db/database');
 const { requireAuth } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/permission');
 const { logOperation } = require('../utils/logger');
-const { ValidationError } = require('../utils/errors');
+const { ValidationError, asyncHandler } = require('../utils/errors');
 const { generatePinyinFields } = require('../utils/pinyin');
 
 const router = express.Router();
@@ -164,7 +164,7 @@ async function exportData(res, { name, sheetName, headers, rows, format }) {
 /**
  * GET /api/data/export/materials?format=csv|xlsx|json
  */
-router.get('/export/materials', requirePermission('materials', 'view'), async (req, res) => {
+router.get('/export/materials', requirePermission('materials', 'view'), asyncHandler(async (req, res) => {
     const db = getDB();
     const { format = 'xlsx' } = req.query;
 
@@ -196,12 +196,12 @@ router.get('/export/materials', requirePermission('materials', 'view'), async (r
 
     logOperation({ userId: req.session.user.id, action: 'export', resource: 'materials', detail: `导出物料数据(${format})，共 ${rows.length} 条`, ip: req.ip });
     await exportData(res, { name: '物料数据', sheetName: '物料列表', headers, rows, format });
-});
+}));
 
 /**
  * GET /api/data/export/inventory?format=csv|xlsx|json
  */
-router.get('/export/inventory', requirePermission('warehouses', 'view'), async (req, res) => {
+router.get('/export/inventory', requirePermission('warehouses', 'view'), asyncHandler(async (req, res) => {
     const db = getDB();
     const { format = 'xlsx' } = req.query;
 
@@ -235,12 +235,12 @@ router.get('/export/inventory', requirePermission('warehouses', 'view'), async (
 
     logOperation({ userId: req.session.user.id, action: 'export', resource: 'inventory', detail: `导出库存数据(${format})，共 ${rows.length} 条`, ip: req.ip });
     await exportData(res, { name: '库存数据', sheetName: '库存明细', headers, rows, format });
-});
+}));
 
 /**
  * GET /api/data/export/movements?format=csv|xlsx|json&startDate=&endDate=
  */
-router.get('/export/movements', requirePermission('warehouses', 'view'), async (req, res) => {
+router.get('/export/movements', requirePermission('warehouses', 'view'), asyncHandler(async (req, res) => {
     const db = getDB();
     const { format = 'xlsx', startDate, endDate } = req.query;
 
@@ -283,12 +283,12 @@ router.get('/export/movements', requirePermission('warehouses', 'view'), async (
 
     logOperation({ userId: req.session.user.id, action: 'export', resource: 'movements', detail: `导出出入库流水(${format})，共 ${rows.length} 条`, ip: req.ip });
     await exportData(res, { name: '出入库流水', sheetName: '出入库流水', headers, rows, format });
-});
+}));
 
 /**
  * GET /api/data/export/shipments?format=csv|xlsx|json
  */
-router.get('/export/shipments', requirePermission('shipments', 'view'), async (req, res) => {
+router.get('/export/shipments', requirePermission('shipments', 'view'), asyncHandler(async (req, res) => {
     const db = getDB();
     const { format = 'xlsx' } = req.query;
 
@@ -325,12 +325,12 @@ router.get('/export/shipments', requirePermission('shipments', 'view'), async (r
 
     logOperation({ userId: req.session.user.id, action: 'export', resource: 'shipments', detail: `导出发货单(${format})，共 ${rows.length} 条`, ip: req.ip });
     await exportData(res, { name: '发货单', sheetName: '发货单', headers, rows, format });
-});
+}));
 
 /**
  * GET /api/data/export/sops?format=csv|xlsx|json
  */
-router.get('/export/sops', requirePermission('sops', 'view'), async (req, res) => {
+router.get('/export/sops', requirePermission('sops', 'view'), asyncHandler(async (req, res) => {
     const db = getDB();
     const { format = 'xlsx' } = req.query;
 
@@ -367,12 +367,12 @@ router.get('/export/sops', requirePermission('sops', 'view'), async (req, res) =
 
     logOperation({ userId: req.session.user.id, action: 'export', resource: 'sops', detail: `导出SOP(${format})，共 ${rows.length} 条`, ip: req.ip });
     await exportData(res, { name: 'SOP数据', sheetName: 'SOP列表', headers, rows, format });
-});
+}));
 
 /**
  * GET /api/data/export/production?format=csv|xlsx|json
  */
-router.get('/export/production', requirePermission('production', 'view'), async (req, res) => {
+router.get('/export/production', requirePermission('production', 'view'), asyncHandler(async (req, res) => {
     const db = getDB();
     const { format = 'xlsx' } = req.query;
 
@@ -416,14 +416,14 @@ router.get('/export/production', requirePermission('production', 'view'), async 
 
     logOperation({ userId: req.session.user.id, action: 'export', resource: 'production', detail: `导出生产工单(${format})，共 ${rows.length} 条`, ip: req.ip });
     await exportData(res, { name: '生产工单', sheetName: '生产工单', headers, rows, format });
-});
+}));
 
 // ===================== 导入模板下载 =====================
 
 /**
  * GET /api/data/import/materials/template?format=csv|xlsx
  */
-router.get('/import/materials/template', requirePermission('materials', 'add'), async (req, res) => {
+router.get('/import/materials/template', requirePermission('materials', 'add'), asyncHandler(async (req, res) => {
     const db = getDB();
     const { format = 'xlsx' } = req.query;
 
@@ -488,7 +488,7 @@ router.get('/import/materials/template', requirePermission('materials', 'add'), 
     // CSV 模板
     setDownloadHeaders(res, '物料导入模板.csv', 'text/csv; charset=utf-8');
     res.send(toCSV(headers, sampleRows));
-});
+}));
 
 // ===================== 导入路由 =====================
 
@@ -496,7 +496,7 @@ router.get('/import/materials/template', requirePermission('materials', 'add'), 
  * POST /api/data/import/materials
  * 支持 CSV / XLSX / JSON 文件上传
  */
-router.post('/import/materials', requirePermission('materials', 'add'), upload.single('file'), async (req, res) => {
+router.post('/import/materials', requirePermission('materials', 'add'), upload.single('file'), asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('请选择要导入的文件');
 
     const ext = path.extname(req.file.originalname).toLowerCase();
@@ -627,7 +627,7 @@ router.post('/import/materials', requirePermission('materials', 'add'), upload.s
             errors: results.errors.slice(0, 20) // 最多返回20条错误
         }
     });
-});
+}));
 
 // ===================== 文件解析函数 =====================
 

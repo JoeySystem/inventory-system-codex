@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { getDbPath, getSessionDbDir } = require('../config/paths');
+const { validateSessionSecret } = require('../config/security');
 
 function print(status, message) {
     console.log(`[${status}] ${message}`);
@@ -46,6 +47,7 @@ function main() {
     print('INFO', `NODE_ENV=${process.env.NODE_ENV || 'development'}`);
     print('INFO', `DB_PATH=${dbPath}`);
     print('INFO', `SESSION_DB_DIR=${sessionDir}`);
+    print('INFO', `COOKIE_SECURE=${process.env.COOKIE_SECURE || 'auto'}`);
 
     ensureDir(path.dirname(dbPath), '数据库目录', issues);
     ensureDir(sessionDir, 'Session 目录', issues);
@@ -75,6 +77,11 @@ function main() {
     const sqliteStore = canLoad('connect-sqlite3');
     if (sqliteStore !== true) {
         issues.push(`connect-sqlite3 无法加载: ${sqliteStore}`);
+    }
+
+    const sessionSecretValidation = validateSessionSecret(process.env.SESSION_SECRET, process.env.NODE_ENV || 'development');
+    if ((process.env.NODE_ENV || 'development') === 'production' && !sessionSecretValidation.valid) {
+        issues.push(sessionSecretValidation.message);
     }
 
     if (issues.length) {

@@ -12,6 +12,7 @@ echo ======================================================
 echo.
 
 cd /d "%PROJECT_DIR%"
+for /f "usebackq tokens=1,* delims==" %%A in (`node deploy/print-deploy-config.js`) do set "%%A=%%B"
 
 where git >nul 2>&1
 if %errorlevel% neq 0 (
@@ -52,7 +53,7 @@ if %errorlevel% neq 0 (
 
 if not "%TARGET_REF%"=="" (
     echo [2/5] Checking out target ref: %TARGET_REF%
-    git checkout %TARGET_REF%
+    git checkout "%TARGET_REF%"
     if %errorlevel% neq 0 (
         echo [X] Failed to checkout %TARGET_REF%
         pause
@@ -77,8 +78,15 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [4/5] Verifying configured database path...
-for /f "usebackq delims=" %%I in (`node -e "const p=require('./server/config/paths'); console.log(p.getDbPath())"`) do set "DB_FILE=%%I"
+echo [4/5] Running deployment preflight...
+call npm run preflight
+if %errorlevel% neq 0 (
+    echo [X] Preflight failed
+    pause
+    exit /b 1
+)
+
+echo [5/5] Verifying configured database path...
 if not exist "%DB_FILE%" (
     echo [!] Database file not found at configured path:
     echo     %DB_FILE%
@@ -87,11 +95,10 @@ if not exist "%DB_FILE%" (
     echo [OK] Database path: %DB_FILE%
 )
 
-echo [5/5] Update complete
+echo Update complete
 for /f "tokens=*" %%i in ('git rev-parse --short HEAD') do set GIT_SHA=%%i
 echo [OK] Current revision: %GIT_SHA%
 echo.
 echo Update finished. If service is running, restart it to apply the new code.
 echo.
 pause
-

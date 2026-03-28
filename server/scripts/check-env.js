@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { getDbPath, getSessionDbDir } = require('../config/paths');
+const { validateSessionSecret } = require('../config/security');
 
 const args = new Set(process.argv.slice(2));
 const strict = args.has('--strict');
@@ -31,6 +32,7 @@ const nodeSupported = supportedNodeMajors.has(nodeMajor);
 const betterSqliteCheck = canLoad('better-sqlite3');
 const dbPath = getDbPath();
 const sessionDir = getSessionDbDir();
+const sessionSecretValidation = validateSessionSecret(process.env.SESSION_SECRET, process.env.NODE_ENV || 'development');
 
 console.log('=== OvO System Environment Check ===');
 printLine('Node.js', process.version);
@@ -57,6 +59,10 @@ if (!fs.existsSync(dbDir)) {
 
 if (!fs.existsSync(sessionDir)) {
     issues.push(`Session 目录不存在: ${sessionDir}`);
+}
+
+if ((process.env.NODE_ENV || 'development') === 'production' && !sessionSecretValidation.valid) {
+    issues.push(sessionSecretValidation.message);
 }
 
 if (issues.length === 0) {

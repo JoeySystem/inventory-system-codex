@@ -68,6 +68,12 @@ function errorHandler(err, req, res, _next) {
     res.status(statusCode).json(response);
 }
 
+function asyncHandler(handler) {
+    return function wrappedAsyncHandler(req, res, next) {
+        Promise.resolve(handler(req, res, next)).catch(next);
+    };
+}
+
 module.exports = {
     AppError,
     ValidationError,
@@ -75,5 +81,6 @@ module.exports = {
     AuthError,
     PermissionError,
     ConflictError,
+    asyncHandler,
     errorHandler
 };

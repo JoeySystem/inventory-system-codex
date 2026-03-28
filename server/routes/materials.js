@@ -15,7 +15,7 @@ const ExcelJS = require('exceljs');
 const { getDB } = require('../db/database');
 const { requireAuth } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/permission');
-const { ValidationError, NotFoundError, ConflictError } = require('../utils/errors');
+const { ValidationError, NotFoundError, ConflictError, asyncHandler } = require('../utils/errors');
 const { generatePinyinFields, buildSearchCondition } = require('../utils/pinyin');
 const { logOperation } = require('../utils/logger');
 
@@ -1595,7 +1595,7 @@ router.post('/import/commit', requirePermission('materials', 'add'), (req, res) 
     res.json({ success: true, data: result });
 });
 
-router.post('/import/inventory-workbook/preview', requirePermission('materials', 'add'), upload.single('file'), async (req, res) => {
+router.post('/import/inventory-workbook/preview', requirePermission('materials', 'add'), upload.single('file'), asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('请选择库存状况表文件');
 
     cleanupPreviewStore(inventoryWorkbookPreviewStore);
@@ -1667,7 +1667,7 @@ router.post('/import/inventory-workbook/preview', requirePermission('materials',
             items
         }
     });
-});
+}));
 
 router.post('/import/inventory-workbook/commit', requirePermission('materials', 'add'), (req, res) => {
     cleanupPreviewStore(inventoryWorkbookPreviewStore);
@@ -1798,7 +1798,7 @@ router.post('/import/inventory-workbook/commit', requirePermission('materials', 
     res.json({ success: true, data: result });
 });
 
-router.post('/import/supplier-price-workbook/preview', requirePermission('materials', 'add'), upload.single('file'), async (req, res) => {
+router.post('/import/supplier-price-workbook/preview', requirePermission('materials', 'add'), upload.single('file'), asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('请选择供应商价格本文件');
 
     cleanupPreviewStore(supplierPricePreviewStore);
@@ -1877,7 +1877,7 @@ router.post('/import/supplier-price-workbook/preview', requirePermission('materi
     });
 
     res.json({ success: true, data: { previewToken, summary, items } });
-});
+}));
 
 router.post('/import/supplier-price-workbook/commit', requirePermission('materials', 'add'), (req, res) => {
     cleanupPreviewStore(supplierPricePreviewStore);

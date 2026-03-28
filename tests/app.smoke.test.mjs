@@ -96,6 +96,22 @@ describe('OvO System smoke tests', () => {
         expect(response.body.data.gitCommit).toBeTruthy();
     });
 
+    it('supports authenticated material export without crashing async routes', async () => {
+        const agent = request.agent(app);
+        const login = await agent
+            .post('/api/auth/login')
+            .send({ username: 'admin', password: 'admin123' });
+        expect(login.status).toBe(200);
+
+        const response = await agent
+            .get('/api/data/export/materials')
+            .query({ format: 'json' });
+
+        expect(response.status).toBe(200);
+        expect(response.headers['content-type']).toContain('application/json');
+        expect(Array.isArray(response.body)).toBe(true);
+    });
+
     it('supports BOM naming governance summary', async () => {
         const agent = request.agent(app);
         const login = await agent
@@ -183,6 +199,23 @@ describe('OvO System smoke tests', () => {
                 stdio: 'pipe'
             });
         }).not.toThrow();
+    });
+
+    it('fails preflight in production when SESSION_SECRET is weak', () => {
+        expect(() => {
+            execFileSync(process.execPath, ['server/scripts/preflight.js'], {
+                cwd: ROOT_DIR,
+                env: {
+                    ...process.env,
+                    NODE_ENV: 'production',
+                    DB_PATH: process.env.DB_PATH,
+                    SESSION_DB_DIR: process.env.SESSION_DB_DIR,
+                    SESSION_SECRET: 'change-me',
+                    COOKIE_SECURE: 'auto'
+                },
+                stdio: 'pipe'
+            });
+        }).toThrow();
     });
 
     it('runs receive stock-document lifecycle end to end', async () => {

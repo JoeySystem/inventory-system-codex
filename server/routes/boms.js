@@ -19,7 +19,7 @@ const { getDB } = require('../db/database');
 const { requireAuth } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/permission');
 const { logOperation } = require('../utils/logger');
-const { ValidationError, NotFoundError } = require('../utils/errors');
+const { ValidationError, NotFoundError, asyncHandler } = require('../utils/errors');
 const { generatePinyinFields } = require('../utils/pinyin');
 
 const router = express.Router();
@@ -649,7 +649,7 @@ router.get('/:id', requirePermission('boms', 'view'), (req, res) => {
     });
 });
 
-router.post('/import/preview', requirePermission('boms', 'add'), upload.single('file'), async (req, res) => {
+router.post('/import/preview', requirePermission('boms', 'add'), upload.single('file'), asyncHandler(async (req, res) => {
     if (!req.file) throw new ValidationError('请选择生产模板明细文件');
 
     cleanupPreviewStore(bomImportPreviewStore);
@@ -761,7 +761,7 @@ router.post('/import/preview', requirePermission('boms', 'add'), upload.single('
     });
 
     res.json({ success: true, data: { previewToken, summary, items } });
-});
+}));
 
 router.post('/import/commit', requirePermission('boms', 'add'), (req, res) => {
     cleanupPreviewStore(bomImportPreviewStore);

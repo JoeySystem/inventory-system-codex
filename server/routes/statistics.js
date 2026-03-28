@@ -16,6 +16,7 @@ const ExcelJS = require('exceljs');
 const { getDB } = require('../db/database');
 const { requireAuth } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/permission');
+const { asyncHandler } = require('../utils/errors');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -2406,7 +2407,7 @@ router.post('/inventory-consistency/issues/governance', requirePermission('repor
     });
 });
 
-router.get('/inventory-consistency/export', requirePermission('reports', 'view'), async (req, res) => {
+router.get('/inventory-consistency/export', requirePermission('reports', 'view'), asyncHandler(async (req, res) => {
     const db = getDB();
     const format = String(req.query.format || 'xlsx').toLowerCase();
     const data = getInventoryConsistencyDetails(db, {
@@ -2465,7 +2466,7 @@ router.get('/inventory-consistency/export', requirePermission('reports', 'view')
     const workbook = await toExcel('库存一致性问题', headers, rows);
     const buffer = await workbook.xlsx.writeBuffer();
     return res.send(Buffer.from(buffer));
-});
+}));
 
 
 module.exports = router;

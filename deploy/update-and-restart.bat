@@ -4,7 +4,6 @@ setlocal enabledelayedexpansion
 
 set "PROJECT_DIR=%~dp0.."
 set "TARGET_REF=%~1"
-set "APP_URL=http://127.0.0.1:3000/api/health"
 
 echo.
 echo ======================================================
@@ -13,6 +12,7 @@ echo ======================================================
 echo.
 
 cd /d "%PROJECT_DIR%"
+for /f "usebackq tokens=1,* delims==" %%A in (`node deploy/print-deploy-config.js`) do set "%%A=%%B"
 
 echo [1/6] Backing up database...
 call "%~dp0backup.bat" <nul
@@ -27,7 +27,7 @@ call "%~dp0stop.bat" <nul
 
 echo [3/6] Updating code...
 if not "%TARGET_REF%"=="" (
-    call "%~dp0update.bat" %TARGET_REF% <nul
+    call "%~dp0update.bat" "%TARGET_REF%" <nul
 ) else (
     call "%~dp0update.bat" <nul
 )
@@ -43,12 +43,15 @@ if %errorlevel% equ 0 (
     net start "OvO System" >nul 2>&1
     if %errorlevel% equ 0 (
         echo [OK] Windows service started
+        if exist "%PID_FILE%" del /q "%PID_FILE%" >nul 2>&1
     ) else (
         echo [!] Failed to start Windows service, falling back to manual start
-        start "OvO System Server" cmd /c "cd /d \"%PROJECT_DIR%\" && node server/index.js"
+        powershell -NoProfile -Command ^
+          "$p = Start-Process -FilePath 'node' -ArgumentList 'server/index.js' -WorkingDirectory '%PROJECT_DIR%' -PassThru; New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetDirectoryName('%PID_FILE%')) | Out-Null; Set-Content -Path '%PID_FILE%' -Value $p.Id"
     )
 ) else (
-    start "OvO System Server" cmd /c "cd /d \"%PROJECT_DIR%\" && node server/index.js"
+    powershell -NoProfile -Command ^
+      "$p = Start-Process -FilePath 'node' -ArgumentList 'server/index.js' -WorkingDirectory '%PROJECT_DIR%' -PassThru; New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetDirectoryName('%PID_FILE%')) | Out-Null; Set-Content -Path '%PID_FILE%' -Value $p.Id"
 )
 timeout /t 4 /nobreak >nul
 
@@ -67,5 +70,5 @@ for /f "tokens=*" %%i in ('git rev-parse --short HEAD') do set GIT_SHA=%%i
 echo [OK] Current revision: %GIT_SHA%
 echo [OK] Health check passed: %APP_URL%
 echo.
-start http://localhost:3000
+start "" "%APP_BASE_URL%"
 pause

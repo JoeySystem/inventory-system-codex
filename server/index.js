@@ -18,6 +18,7 @@ const rateLimit = require('express-rate-limit');
 
 const { getDB, closeDB } = require('./db/database');
 const { getDbPath, getSessionDbDir, getSessionDbName } = require('./config/paths');
+const { FALLBACK_SESSION_SECRET, validateSessionSecret } = require('./config/security');
 const { errorHandler } = require('./utils/errors');
 
 // 路由
@@ -55,6 +56,12 @@ const appMeta = {
     gitCommit: getGitCommit(),
     builtAt: new Date().toISOString()
 };
+const sessionSecret = process.env.SESSION_SECRET || FALLBACK_SESSION_SECRET;
+const sessionSecretValidation = validateSessionSecret(sessionSecret, process.env.NODE_ENV || 'development');
+if ((process.env.NODE_ENV || 'development') === 'production' && !sessionSecretValidation.valid) {
+    console.error(`❌ ${sessionSecretValidation.message}`);
+    process.exit(1);
+}
 
 function resolveTrustProxy(value) {
     if (value === undefined || value === null || value === '') {
@@ -146,7 +153,7 @@ app.use(session({
         table: 'sessions'
     }),
     name: 'maverick.sid',
-    secret: process.env.SESSION_SECRET || 'fallback-secret-change-me',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {

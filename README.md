@@ -145,6 +145,7 @@ npm start
 
 - 本地 HTTP 环境不要通过把 `NODE_ENV` 改成 `development` 来规避登录态问题
 - 正式行为应通过 `COOKIE_SECURE` 与代理配置控制
+- `NODE_ENV=production` 时，如果 `SESSION_SECRET` 仍是占位值、弱值或未配置，服务会拒绝启动
 
 ## 运行与兼容性
 

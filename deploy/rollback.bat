@@ -5,7 +5,6 @@ setlocal enabledelayedexpansion
 set "PROJECT_DIR=%~dp0.."
 set "TARGET_REF=%~1"
 set "TARGET_BACKUP=%~2"
-set "APP_URL=http://127.0.0.1:3000/api/health"
 
 echo.
 echo ======================================================
@@ -14,6 +13,7 @@ echo ======================================================
 echo.
 
 cd /d "%PROJECT_DIR%"
+for /f "usebackq tokens=1,* delims==" %%A in (`node deploy/print-deploy-config.js`) do set "%%A=%%B"
 
 where git >nul 2>&1
 if %errorlevel% neq 0 (
@@ -37,8 +37,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-for /f "usebackq delims=" %%I in (`node -e "const p=require('./server/config/paths'); console.log(p.getDbPath())"`) do set "DB_FILE=%%I"
-for /f "usebackq delims=" %%I in (`node -e "const p=require('./server/config/paths'); console.log(require('path').dirname(p.getDbPath()))"`) do set "DB_DIR=%%I"
 set "BACKUP_DIR=%PROJECT_DIR%\backups"
 
 if "%TARGET_REF%"=="" (
@@ -80,29 +78,27 @@ if not exist "%RESTORE_FILE%" (
     exit /b 1
 )
 
-echo [1/6] Stopping running service...
+echo [1/7] Stopping running service...
 call "%~dp0stop.bat" <nul
 
-echo [2/6] Backing up current database before rollback...
+echo [2/7] Backing up current database before rollback...
 if exist "%DB_FILE%" (
-    for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
-    set "TIMESTAMP=!datetime:~0,4!-!datetime:~4,2!-!datetime:~6,2!_!datetime:~8,2!!datetime:~10,2!!datetime:~12,2!"
     copy "%DB_FILE%" "%BACKUP_DIR%\inventory_before_rollback_!TIMESTAMP!.db" >nul
     echo [OK] Current database backed up
 ) else (
     echo [!] Current database not found, skipping pre-rollback backup
 )
 
-echo [3/6] Checking out target ref: %TARGET_REF%
+echo [3/7] Checking out target ref: %TARGET_REF%
 git fetch --all --tags
-git checkout %TARGET_REF%
+git checkout "%TARGET_REF%"
 if %errorlevel% neq 0 (
     echo [X] Failed to checkout %TARGET_REF%
     pause
     exit /b 1
 )
 
-echo [4/6] Installing production dependencies...
+echo [4/7] Installing production dependencies...
 call npm install --production
 if %errorlevel% neq 0 (
     echo [X] npm install failed
@@ -110,7 +106,15 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [5/6] Restoring database backup...
+echo [5/7] Running deployment preflight...
+call npm run preflight
+if %errorlevel% neq 0 (
+    echo [X] Preflight failed
+    pause
+    exit /b 1
+)
+
+echo [6/7] Restoring database backup...
 if not exist "%DB_DIR%" mkdir "%DB_DIR%"
 copy /Y "%RESTORE_FILE%" "%DB_FILE%" >nul
 if %errorlevel% neq 0 (
@@ -120,18 +124,21 @@ if %errorlevel% neq 0 (
 )
 echo [OK] Database restored from %TARGET_BACKUP%
 
-echo [6/6] Starting service and running health check...
+echo [7/7] Starting service and running health check...
 sc query "OvO System" >nul 2>&1
 if %errorlevel% equ 0 (
     net start "OvO System" >nul 2>&1
     if %errorlevel% equ 0 (
         echo [OK] Windows service started
+        if exist "%PID_FILE%" del /q "%PID_FILE%" >nul 2>&1
     ) else (
         echo [!] Failed to start Windows service, falling back to manual start
-        start "OvO System Server" cmd /c "cd /d \"%PROJECT_DIR%\" && node server/index.js"
+        powershell -NoProfile -Command ^
+          "$p = Start-Process -FilePath 'node' -ArgumentList 'server/index.js' -WorkingDirectory '%PROJECT_DIR%' -PassThru; New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetDirectoryName('%PID_FILE%')) | Out-Null; Set-Content -Path '%PID_FILE%' -Value $p.Id"
     )
 ) else (
-    start "OvO System Server" cmd /c "cd /d \"%PROJECT_DIR%\" && node server/index.js"
+    powershell -NoProfile -Command ^
+      "$p = Start-Process -FilePath 'node' -ArgumentList 'server/index.js' -WorkingDirectory '%PROJECT_DIR%' -PassThru; New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetDirectoryName('%PID_FILE%')) | Out-Null; Set-Content -Path '%PID_FILE%' -Value $p.Id"
 )
 timeout /t 4 /nobreak >nul
 
@@ -149,5 +156,5 @@ echo [OK] Rollback finished successfully
 echo [OK] Current revision: %GIT_SHA%
 echo [OK] Health check passed: %APP_URL%
 echo.
-start http://localhost:3000
+start "" "%APP_BASE_URL%"
 pause
