@@ -395,6 +395,10 @@
                                        placeholder="搜索主数据、动作入口或生产入口">
                                 <div v-if="globalSearch.trim() && globalSearchOptions.length > 0"
                                      class="absolute left-0 right-0 top-full mt-2 rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden z-30">
+                                    <div class="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-3 py-2 text-[11px] text-gray-500">
+                                        <span>匹配结果</span>
+                                        <span>共 {{ globalSearchOptions.length }} 条</span>
+                                    </div>
                                     <button v-for="option in globalSearchOptions"
                                             :key="option.key"
                                             @click="selectGlobalSearchOption(option)"
@@ -480,7 +484,7 @@
             </div>
 
             <!-- 修改密码弹窗 -->
-            <div v-if="showPwdModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showPwdModal=false">
+            <div v-if="showPwdModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" v-safe-overlay-close="() => { showPwdModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 mx-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">修改密码</h3>
                     <form @submit.prevent="changePassword" class="space-y-4">
@@ -513,7 +517,7 @@
                 </div>
             </div>
 
-            <div v-if="showSystemInfoModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showSystemInfoModal = false">
+            <div v-if="showSystemInfoModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" v-safe-overlay-close="() => { showSystemInfoModal = false }">
                 <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 mx-4">
                     <div class="flex items-start justify-between gap-4">
                         <div>
@@ -582,7 +586,7 @@
             </div>
 
             <!-- 全局确认弹窗 -->
-            <div v-if="confirmState.open" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="resolveConfirm(false)">
+            <div v-if="confirmState.open" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" v-safe-overlay-close="() => resolveConfirm(false)">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
                     <div class="flex items-start gap-3">
                         <div :class="confirmState.tone === 'danger' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'"
@@ -630,6 +634,22 @@
             return formatDateObject(new Date(trimmed));
         }
         return String(value);
+    }
+
+    function createOverlayCloseGuard() {
+        const armed = ref(false);
+        function onOverlayMouseDown(event) {
+            armed.value = event.target === event.currentTarget;
+        }
+        function onOverlayMouseUp(closeFn, event) {
+            const shouldClose = armed.value && event.target === event.currentTarget;
+            armed.value = false;
+            if (shouldClose) closeFn();
+        }
+        function reset() {
+            armed.value = false;
+        }
+        return { onOverlayMouseDown, onOverlayMouseUp, reset };
     }
 
     // ============================================
@@ -839,7 +859,7 @@
                 </div>
             </div>
 
-            <div v-if="showLowStockModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showLowStockModal = false">
+            <div v-if="showLowStockModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" v-safe-overlay-close="() => { showLowStockModal = false }">
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] overflow-hidden">
                     <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                         <div>
@@ -881,7 +901,7 @@
                 </div>
             </div>
 
-            <div v-if="showKitCoverageModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showKitCoverageModal = false">
+            <div v-if="showKitCoverageModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" v-safe-overlay-close="() => { showKitCoverageModal = false }">
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[85vh] overflow-hidden">
                     <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                         <div>
@@ -948,7 +968,7 @@
                 </div>
             </div>
 
-            <div v-if="showSupplyRiskModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showSupplyRiskModal = false">
+            <div v-if="showSupplyRiskModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" v-safe-overlay-close="() => { showSupplyRiskModal = false }">
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[85vh] overflow-hidden">
                     <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                         <div>
@@ -995,7 +1015,7 @@
                 </div>
             </div>
 
-            <div v-if="showWarningSettingsModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" @click.self="showWarningSettingsModal = false">
+            <div v-if="showWarningSettingsModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50" v-safe-overlay-close="() => { showWarningSettingsModal = false }">
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl">
                     <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                         <div>
@@ -1885,7 +1905,10 @@
                 <p class="text-gray-400">暂无仓库资料</p>
             </div>
 
-            <div v-if="showModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showModal = false">
+            <div v-if="showModal"
+                 class="fixed inset-0 bg-black/40 flex items-center justify-center z-40"
+                 @mousedown.self="onWarehouseOverlayMouseDown"
+                 @mouseup.self="onWarehouseOverlayMouseUp">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ editingId ? '编辑仓库资料' : '新建仓库资料' }}</h3>
                     <form @submit.prevent="submitWarehouse" class="space-y-4">
@@ -1914,7 +1937,7 @@
                         <div v-if="formError" class="bg-red-50 text-red-600 text-sm rounded-lg px-3 py-2">{{ formError }}</div>
                         <div class="flex gap-3 pt-2">
                             <button type="submit" :disabled="formLoading" class="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm py-2.5 rounded-lg transition">{{ formLoading ? '保存中...' : '保存仓库资料' }}</button>
-                            <button type="button" @click="showModal = false" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-lg transition">取消</button>
+                            <button type="button" @click="closeWarehouseModal" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-lg transition">取消</button>
                         </div>
                     </form>
                 </div>
@@ -1933,6 +1956,7 @@
             const formError = ref('');
             const emptyForm = { name: '', address: '', contactPerson: '', contactPhone: '', notes: '' };
             const form = ref({ ...emptyForm });
+            const warehouseModalCloseGuard = createOverlayCloseGuard();
 
             async function loadWarehouses() {
                 try {
@@ -1947,6 +1971,7 @@
                 form.value = { ...emptyForm };
                 formError.value = '';
                 showModal.value = true;
+                warehouseModalCloseGuard.reset();
             }
 
             function editWarehouse(wh) {
@@ -1954,6 +1979,20 @@
                 form.value = { name: wh.name, address: wh.address || '', contactPerson: wh.contact_person || '', contactPhone: wh.contact_phone || '', notes: wh.notes || '' };
                 formError.value = '';
                 showModal.value = true;
+                warehouseModalCloseGuard.reset();
+            }
+
+            function closeWarehouseModal() {
+                warehouseModalCloseGuard.reset();
+                showModal.value = false;
+            }
+
+            function onWarehouseOverlayMouseDown(event) {
+                warehouseModalCloseGuard.onOverlayMouseDown(event);
+            }
+
+            function onWarehouseOverlayMouseUp(event) {
+                warehouseModalCloseGuard.onOverlayMouseUp(closeWarehouseModal, event);
             }
 
             async function submitWarehouse() {
@@ -1965,7 +2004,7 @@
                     } else {
                         await api.post('/api/warehouses', form.value);
                     }
-                    showModal.value = false;
+                    closeWarehouseModal();
                     await loadWarehouses();
                     showToast('仓库资料已保存', 'success');
                 } catch (e) {
@@ -1995,7 +2034,8 @@
 
             return {
                 warehouses, showModal, editingId, form, formLoading, formError, canAction,
-                openCreateModal, editWarehouse, submitWarehouse, deleteWarehouse
+                openCreateModal, editWarehouse, submitWarehouse, deleteWarehouse,
+                closeWarehouseModal, onWarehouseOverlayMouseDown, onWarehouseOverlayMouseUp
             };
         }
     };
@@ -5006,6 +5046,17 @@
 
             <!-- 物料列表 -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3">
+                    <div class="text-sm font-medium text-gray-700">物料列表</div>
+                    <div class="text-xs text-gray-500">
+                        <span v-if="loading">搜索中...</span>
+                        <span v-else>
+                            当前匹配
+                            <span class="font-semibold text-indigo-600">{{ pagination.total || materials.length || 0 }}</span>
+                            条
+                        </span>
+                    </div>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[760px]">
                         <thead class="bg-gray-50">
@@ -5107,7 +5158,10 @@
             </div>
 
             <!-- 创建/编辑物料弹窗 -->
-            <div v-if="showModal" class="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-40 p-6" @click.self="showModal = false">
+            <div v-if="showModal"
+                 class="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-40 p-6"
+                 @mousedown.self="onMaterialOverlayMouseDown"
+                 @mouseup.self="onMaterialOverlayMouseUp">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 mx-4 max-h-[calc(100vh-3rem)] overflow-y-auto">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ editingId ? '编辑物料' : '添加物料' }}</h3>
                     <form @submit.prevent="submitMaterial" class="space-y-4">
@@ -5277,7 +5331,7 @@
                                     class="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm py-2.5 rounded-lg transition">
                                 {{ formLoading ? '保存中...' : '保存' }}
                             </button>
-                            <button type="button" @click="showModal = false"
+                            <button type="button" @click="closeMaterialModal"
                                     class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-lg transition">取消</button>
                         </div>
                     </form>
@@ -5285,7 +5339,7 @@
             </div>
 
             <!-- 分类管理弹窗 -->
-            <div v-if="showCategoryModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showCategoryModal = false">
+            <div v-if="showCategoryModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showCategoryModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">管理分类</h3>
                     <div class="space-y-2 mb-4 max-h-64 overflow-y-auto">
@@ -5305,7 +5359,7 @@
             </div>
 
 	            <!-- 导入弹窗 -->
-            <div v-if="showImportModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="closeImportModal">
+            <div v-if="showImportModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="closeImportModal">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 mx-4">
                     <div class="flex items-center justify-between gap-3 mb-4">
                         <h3 class="text-lg font-semibold text-gray-800">批量导入物料</h3>
@@ -5443,7 +5497,7 @@
 	            </div>
 
 	            <!-- 物料详情弹窗 -->
-	            <div v-if="showDetailModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="closeDetailModal">
+	            <div v-if="showDetailModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="closeDetailModal">
 	                <div class="bg-white rounded-xl shadow-xl w-full max-w-7xl p-6 mx-4 max-h-[92vh] overflow-y-auto">
 	                    <div class="flex items-start justify-between gap-4 mb-5">
 	                        <div>
@@ -5967,7 +6021,7 @@
 	            </div>
 
 	            <!-- 重复物料治理弹窗 -->
-	            <div v-if="showDuplicatesModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="closeDuplicatesModal">
+	            <div v-if="showDuplicatesModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="closeDuplicatesModal">
 	                <div class="bg-white rounded-xl shadow-xl w-full max-w-5xl p-6 mx-4 max-h-[92vh] overflow-y-auto">
 	                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
 	                        <div>
@@ -6043,7 +6097,7 @@
 	                </div>
 	            </div>
 
-	            <div v-if="showMaterialNamingGovernanceModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="closeMaterialNamingGovernanceModal">
+	            <div v-if="showMaterialNamingGovernanceModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="closeMaterialNamingGovernanceModal">
 	                <div class="bg-white rounded-xl shadow-xl w-full max-w-5xl p-6 mx-4 max-h-[92vh] overflow-y-auto">
 	                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
 	                        <div>
@@ -6127,6 +6181,7 @@
             const pagination = ref({ page: 1, limit: 20, total: 0, totalPages: 0 });
 
 	            const showModal = ref(false);
+                const materialModalCloseGuard = createOverlayCloseGuard();
 	            const editingId = ref(null);
 	            const formLoading = ref(false);
 	            const formError = ref('');
@@ -6216,6 +6271,19 @@
 	            const importPreviewToken = ref('');
 	            const importDragOver = ref(false);
 	            const importHint = ref('');
+
+                function closeMaterialModal() {
+                    materialModalCloseGuard.reset();
+                    showModal.value = false;
+                }
+
+                function onMaterialOverlayMouseDown(event) {
+                    materialModalCloseGuard.onOverlayMouseDown(event);
+                }
+
+                function onMaterialOverlayMouseUp(event) {
+                    materialModalCloseGuard.onOverlayMouseUp(closeMaterialModal, event);
+                }
 
 	            function isInventoryWorkbookFile(file) {
 	                const fileName = String(file?.name || '').toLowerCase();
@@ -6372,6 +6440,7 @@
 	                form.value = { ...emptyForm };
                 formError.value = '';
 	                showModal.value = true;
+                    materialModalCloseGuard.reset();
 	                nextTick(() => lucide.createIcons());
 	            }
 
@@ -6696,6 +6765,7 @@
 	                };
 	                formError.value = '';
 	                showModal.value = true;
+                    materialModalCloseGuard.reset();
 	            }
 
 	            async function submitMaterial() {
@@ -6724,7 +6794,7 @@
 	                    } else {
 	                        await api.post('/api/materials', payload);
 	                    }
-	                    showModal.value = false;
+	                    closeMaterialModal();
 	                    await loadMaterials();
                     await loadCategories();
 	                } catch (e) { formError.value = e.message; } finally { formLoading.value = false; }
@@ -7094,6 +7164,7 @@
 	                supplyRiskLevelLabel, supplyRiskLevelClass, materialNamingStatusLabel, materialNamingStatusClass,
 	                openDetailModal, closeDetailModal, changeLifecycle, lifecycleTargets, dataQualityLabel,
 	                editFromDetail,
+	                closeMaterialModal, onMaterialOverlayMouseDown, onMaterialOverlayMouseUp,
 	                detailTotalStock, detailSafetyStock, submitSubstitution, removeSubstitution, resetSubstitutionForm,
 	                addDetailUom, removeDetailUom, resetUomForm, addDetailSupplier, removeDetailSupplier, resetSupplierForm, supplierTypeLabel, platformLabel,
 	                openDuplicatesModal, closeDuplicatesModal, inspectDuplicate, loadDuplicateGroups,
@@ -7203,7 +7274,7 @@
             </div>
 
             <!-- 创建/编辑仓库弹窗 -->
-            <div v-if="showModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showModal = false">
+            <div v-if="showModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ editingId ? '编辑仓库' : '添加仓库' }}</h3>
                     <form @submit.prevent="submitWarehouse" class="space-y-4">
@@ -7239,7 +7310,7 @@
             </div>
 
             <!-- 库存执行弹窗 -->
-            <div v-if="showStockModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showStockModal = false">
+            <div v-if="showStockModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showStockModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-1">{{ stockWarehouse?.name }}</h3>
                     <p class="text-sm text-gray-400 mb-3">过渡期执行入口已收口到新单据页。当前页面不再直接记账，请进入“入库 / 出库”页面录单并走正式状态流转。</p>
@@ -7479,7 +7550,7 @@
             </div>
 
             <!-- 新建销售发货弹窗 -->
-            <div v-if="showCreateModal" class="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-40 p-6" @click.self="showCreateModal = false">
+            <div v-if="showCreateModal" class="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-40 p-6" v-safe-overlay-close="() => { showCreateModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-5xl p-6 mx-4 max-h-[calc(100vh-3rem)] overflow-y-auto">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">新建销售发货</h3>
                     <form @submit.prevent="submitShipment" class="space-y-4">
@@ -7617,7 +7688,7 @@
             </div>
 
             <!-- 销售发货详情弹窗 -->
-            <div v-if="showDetailModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showDetailModal = false">
+            <div v-if="showDetailModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showDetailModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-6xl p-6 mx-4 max-h-[90vh] overflow-y-auto">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-semibold text-gray-800">销售发货详情</h3>
@@ -10425,7 +10496,7 @@
                     </div>
                 </div>
 
-                <div v-if="selectedDocument" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/35 p-4" @click.self="closeDocumentDetail">
+                <div v-if="selectedDocument" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/35 p-4" v-safe-overlay-close="closeDocumentDetail">
                     <div class="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
                         <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
                             <div>
@@ -11028,7 +11099,7 @@
                 </div>
             </div>
 
-            <div v-if="detailOpen" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/35 p-4" @click.self="closeDetail">
+            <div v-if="detailOpen" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/35 p-4" v-safe-overlay-close="closeDetail">
                 <div class="w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
                     <div class="flex items-start justify-between gap-4 px-6 py-5 border-b border-slate-200">
                         <div>
@@ -11123,7 +11194,7 @@
                 </div>
             </div>
 
-            <div v-if="showImportModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-[70] p-4" @click.self="closeImportModal">
+            <div v-if="showImportModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-[70] p-4" v-safe-overlay-close="closeImportModal">
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
                     <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
                         <div>
@@ -11594,7 +11665,7 @@
                 </div>
             </div>
 
-            <div v-if="showDetail" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40 p-4" @click.self="showDetail=false">
+            <div v-if="showDetail" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40 p-4" v-safe-overlay-close="() => { showDetail = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
                     <div class="flex items-start justify-between gap-4 mb-4">
                         <div>
@@ -11701,7 +11772,7 @@
                 </div>
             </div>
 
-            <div v-if="showGovernanceModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" @click.self="closeGovernanceEditor">
+            <div v-if="showGovernanceModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" v-safe-overlay-close="closeGovernanceEditor">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6">
                     <div class="flex items-start justify-between gap-4 mb-4">
                         <div>
@@ -12081,6 +12152,10 @@
                         <option value="">全部分类</option>
                         <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
                     </select>
+                    <div class="text-xs text-gray-500">
+                        <span v-if="loadingSops">搜索中...</span>
+                        <span v-else>当前匹配 <span class="font-semibold text-violet-700">{{ sops.length }}</span> 条</span>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <div class="relative" ref="sopExportRef">
@@ -12126,7 +12201,7 @@
                 </div>
 
             <!-- SOP 详情弹窗 -->
-            <div v-if="showDetail" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showDetail=false">
+            <div v-if="showDetail" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showDetail = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-6xl p-6 mx-4 max-h-[90vh] overflow-y-auto">
                     <div class="flex items-center justify-between mb-4">
                         <div>
@@ -12194,7 +12269,10 @@
             </div>
 
             <!-- 创建/编辑弹窗 -->
-            <div v-if="showForm" class="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-40 p-6" @click.self="showForm=false">
+            <div v-if="showForm"
+                 class="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-40 p-6"
+                 @mousedown.self="onSopOverlayMouseDown"
+                 @mouseup.self="onSopOverlayMouseUp">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6 mx-4 max-h-[calc(100vh-3rem)] overflow-y-auto">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ editId ? '编辑SOP' : '新建SOP' }}</h3>
                     <form @submit.prevent="submitForm" class="space-y-4">
@@ -12296,7 +12374,7 @@
                         <div v-if="formError" class="bg-red-50 text-red-600 text-sm rounded-lg px-3 py-2">{{ formError }}</div>
                         <div class="flex gap-3 pt-2">
                             <button type="submit" :disabled="formLoading" class="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm py-2.5 rounded-lg transition">{{ formLoading ? '保存中...' : '保存' }}</button>
-                            <button type="button" @click="showForm=false" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-lg transition">取消</button>
+                            <button type="button" @click="closeSopForm" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-lg transition">取消</button>
                         </div>
                     </form>
                 </div>
@@ -12316,6 +12394,7 @@
             const showDetail = ref(false);
             const detail = ref({});
             const showForm = ref(false);
+            const sopFormCloseGuard = createOverlayCloseGuard();
             const editId = ref(null);
             const formLoading = ref(false);
             const formError = ref('');
@@ -12364,6 +12443,7 @@
                 form.value = { title: '', version: '1.0', category: '', description: '', steps: [], materials: [] };
                 formError.value = '';
                 showForm.value = true;
+                sopFormCloseGuard.reset();
                 nextTick(() => lucide.createIcons());
             }
 
@@ -12397,8 +12477,22 @@
                         }))
                     };
                     showForm.value = true;
+                    sopFormCloseGuard.reset();
                 } catch (e) { alert(e.message); }
                 nextTick(() => lucide.createIcons());
+            }
+
+            function closeSopForm() {
+                sopFormCloseGuard.reset();
+                showForm.value = false;
+            }
+
+            function onSopOverlayMouseDown(event) {
+                sopFormCloseGuard.onOverlayMouseDown(event);
+            }
+
+            function onSopOverlayMouseUp(event) {
+                sopFormCloseGuard.onOverlayMouseUp(closeSopForm, event);
             }
 
             function addStep() { form.value.steps.push({ title: '', description: '', duration_minutes: null }); nextTick(() => lucide.createIcons()); }
@@ -12473,7 +12567,7 @@
                     };
                     if (editId.value) { await api.put('/api/sops/' + editId.value, payload); }
                     else { await api.post('/api/sops', payload); }
-                    showForm.value = false;
+                    closeSopForm();
                     await loadSOPs();
                 } catch (e) { formError.value = e.message; } finally { formLoading.value = false; }
             }
@@ -12488,7 +12582,7 @@
             }
 
             onMounted(() => loadSOPs());
-            return { sops, categories, searchText, filterCategory, showDetail, detail, showForm, editId, formLoading, formError, allMaterials, form, canAction, showSopExport, sopExportRef, debounceLoad, loadSOPs, viewDetail, openCreate, openEdit, addStep, addMaterial, searchSopMaterials, hideSopMaterialResults, selectSopMaterial, submitForm, deleteSOP, duplicateSOP };
+            return { sops, categories, searchText, filterCategory, showDetail, detail, showForm, editId, formLoading, formError, allMaterials, form, canAction, showSopExport, sopExportRef, debounceLoad, loadSOPs, viewDetail, openCreate, openEdit, addStep, addMaterial, searchSopMaterials, hideSopMaterialResults, selectSopMaterial, submitForm, deleteSOP, duplicateSOP, closeSopForm, onSopOverlayMouseDown, onSopOverlayMouseUp };
         }
     };
 
@@ -12597,7 +12691,7 @@
             </div>
 
             <!-- 新建生产工单弹窗 -->
-            <div v-if="showCreateModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showCreateModal=false">
+            <div v-if="showCreateModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showCreateModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 mx-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">新建生产工单</h3>
                     <form @submit.prevent="submitCreate" class="space-y-4">
@@ -12646,7 +12740,7 @@
             </div>
 
             <!-- 工单详情弹窗 -->
-            <div v-if="showDetailModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showDetailModal=false">
+            <div v-if="showDetailModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showDetailModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-7xl p-6 mx-4 max-h-[90vh] overflow-y-auto">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-semibold text-gray-800">生产工单详情</h3>
@@ -13598,6 +13692,10 @@
                         <option value="draft">草稿</option>
                         <option value="archived">归档</option>
                     </select>
+                    <div class="text-xs text-gray-500">
+                        <span v-if="loadingBOMs">搜索中...</span>
+                        <span v-else>当前匹配 <span class="font-semibold text-fuchsia-700">{{ bomPagination.total || boms.length || 0 }}</span> 条</span>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <button @click="openNamingGovernance"
@@ -13631,7 +13729,7 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-1.5">
-                            <span class="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">v{{ b.version }}</span>
+                            <span class="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">{{ b.display_version || normalizeBomDisplayVersionClient(b.version || 'V01') }}</span>
                             <span :class="statusCls(b.status)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ statusLabel(b.status) }}</span>
                         </div>
                     </div>
@@ -13653,14 +13751,14 @@
                 </div>
 
             <!-- BOM 详情弹窗 -->
-            <div v-if="showDetail" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showDetail=false">
+            <div v-if="showDetail" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showDetail = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-7xl p-6 mx-4 max-h-[90vh] overflow-y-auto">
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <h3 class="text-lg font-semibold text-gray-800">{{ detail.bom?.name }}</h3>
                             <div class="flex items-center gap-2 mt-1">
                                 <span class="text-xs font-mono text-gray-400">{{ detail.bom?.code }}</span>
-                                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">v{{ detail.bom?.version }}</span>
+                                <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{{ detail.bom?.display_version || normalizeBomDisplayVersionClient(detail.bom?.version || 'V01') }}</span>
                                 <span :class="statusCls(detail.bom?.status)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ statusLabel(detail.bom?.status) }}</span>
                             </div>
                         </div>
@@ -13858,7 +13956,10 @@
             </div>
 
             <!-- 创建/编辑 BOM 弹窗 -->
-            <div v-if="showForm" class="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-40 p-6" @click.self="showForm=false">
+            <div v-if="showForm"
+                 class="fixed inset-0 bg-black/40 flex items-start justify-center overflow-y-auto z-40 p-6"
+                 @mousedown.self="onBomOverlayMouseDown"
+                 @mouseup.self="onBomOverlayMouseUp">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl p-6 mx-4 max-h-[calc(100vh-3rem)] overflow-y-auto">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ editId ? '编辑BOM' : '新建BOM' }}</h3>
                     <form @submit.prevent="submitForm" class="space-y-4">
@@ -13984,7 +14085,7 @@
                                                                     @change="onBomMaterialChange(idx, $event)" />
                                             <select v-else v-model="item.subBomId" required class="w-full px-2 py-1.5 border border-purple-300 rounded text-sm outline-none bg-purple-50">
                                                 <option value="">选择子BOM...</option>
-                                                <option v-for="sb in availableSubBoms" :key="sb.id" :value="sb.id">{{ sb.name }} ({{ sb.code }}) v{{ sb.version }}</option>
+                                                <option v-for="sb in availableSubBoms" :key="sb.id" :value="sb.id">{{ sb.name }} ({{ sb.code }}) {{ sb.display_version || normalizeBomDisplayVersionClient(sb.version || 'V01') }}</option>
                                             </select>
                                         </td>
                                         <td class="px-3 py-2"><input v-model.number="item.quantity" type="number" step="0.01" min="0.01" required class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-center outline-none" /></td>
@@ -14008,20 +14109,20 @@
                         <div v-if="formError" class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-600">{{ formError }}</div>
                         <div class="flex gap-3 pt-2">
                             <button type="submit" :disabled="formLoading" class="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm py-2.5 rounded-lg transition">{{ formLoading ? '保存中...' : '保存' }}</button>
-                            <button type="button" @click="showForm=false" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-lg transition">取消</button>
+                            <button type="button" @click="closeBomForm" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm py-2.5 rounded-lg transition">取消</button>
                         </div>
                     </form>
                 </div>
             </div>
 
             <!-- 版本历史弹窗 -->
-            <div v-if="showVersionModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showVersionModal=false">
+            <div v-if="showVersionModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showVersionModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 mx-4 max-h-[90vh] overflow-y-auto">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">版本历史</h3>
                     <div class="space-y-3">
                         <div v-for="v in versionList" :key="v.id" class="border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
                             <div class="flex items-center justify-between mb-1">
-                                <span class="text-sm font-medium text-gray-800">v{{ v.version }}</span>
+                                <span class="text-sm font-medium text-gray-800">修订 v{{ v.version }}</span>
                                 <span class="text-xs text-gray-400">{{ $formatDateTime(v.created_at) }}</span>
                             </div>
                             <p v-if="v.change_notes" class="text-xs text-gray-500 mb-2">{{ v.change_notes }}</p>
@@ -14037,7 +14138,7 @@
                 </div>
             </div>
 
-            <div v-if="showBomImportModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="closeBomImportModal">
+            <div v-if="showBomImportModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="closeBomImportModal">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl p-6 mx-4 max-h-[90vh] overflow-y-auto">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">导入生产模板明细</h3>
                     <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
@@ -14110,7 +14211,7 @@
                 </div>
             </div>
 
-            <div v-if="showNamingGovernanceModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" @click.self="showNamingGovernanceModal=false">
+            <div v-if="showNamingGovernanceModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-40" v-safe-overlay-close="() => { showNamingGovernanceModal = false }">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-6xl p-6 mx-4 max-h-[90vh] overflow-y-auto">
                     <div class="flex items-center justify-between mb-4">
                         <div>
@@ -14188,12 +14289,15 @@
             const route = VueRouter.useRoute();
             const issueFromBomMode = computed(() => route.query.issueFromBom === '1');
             const boms = ref([]);
+            const loadingBOMs = ref(false);
+            const bomPagination = ref({ page: 1, limit: 50, total: 0, totalPages: 0 });
             const searchText = ref('');
             const filterStatus = ref('');
             const showDetail = ref(false);
             const detail = ref({});
             const flatTree = ref([]);
             const showForm = ref(false);
+            const bomFormCloseGuard = createOverlayCloseGuard();
             const editId = ref(null);
             const formLoading = ref(false);
             const formError = ref('');
@@ -14462,6 +14566,7 @@
             function debounceLoad() { clearTimeout(searchTimer); searchTimer = setTimeout(loadBOMs, 300); }
 
             async function loadBOMs() {
+                loadingBOMs.value = true;
                 try {
                     const params = new URLSearchParams();
                     if (searchText.value) params.set('q', searchText.value);
@@ -14469,7 +14574,9 @@
                     params.set('limit', '50');
                     const data = await api.get('/api/boms?' + params.toString());
                     boms.value = data.boms;
+                    bomPagination.value = data.pagination || bomPagination.value;
                 } catch (e) { console.error(e); }
+                finally { loadingBOMs.value = false; }
             }
 
             async function loadMaterials() {
@@ -14559,6 +14666,7 @@
                 form.value = { ...emptyForm, items: [] };
                 formError.value = '';
                 showForm.value = true;
+                bomFormCloseGuard.reset();
                 loadMaterials();
                 loadAllBoms();
                 nextTick(() => lucide.createIcons());
@@ -14599,8 +14707,22 @@
                         changeNotes: ''
                     };
                     showForm.value = true;
+                    bomFormCloseGuard.reset();
                     nextTick(() => lucide.createIcons());
                 } catch (e) { alert(e.message); }
+            }
+
+            function closeBomForm() {
+                bomFormCloseGuard.reset();
+                showForm.value = false;
+            }
+
+            function onBomOverlayMouseDown(event) {
+                bomFormCloseGuard.onOverlayMouseDown(event);
+            }
+
+            function onBomOverlayMouseUp(event) {
+                bomFormCloseGuard.onOverlayMouseUp(closeBomForm, event);
             }
 
             function addItem(type) {
@@ -14747,7 +14869,7 @@
                     } else {
                         await api.post('/api/boms', payload);
                     }
-                    showForm.value = false;
+                    closeBomForm();
                     loadBOMs();
                 } catch (e) {
                     formError.value = e.message;
@@ -14793,6 +14915,7 @@
             }
 
             onMounted(async () => {
+                if (route.query.q) searchText.value = String(route.query.q);
                 await loadBOMs();
                 await loadWarehouses();
                 await syncRouteBomDetail();
@@ -14804,8 +14927,15 @@
                 await syncRouteBomDetail();
             });
 
+            Vue.watch(() => route.query.q, async (nextValue) => {
+                const normalized = String(nextValue || '');
+                if (searchText.value === normalized) return;
+                searchText.value = normalized;
+                await loadBOMs();
+            });
+
             return {
-                boms, searchText, filterStatus, showDetail, detail, flatTree,
+                boms, loadingBOMs, bomPagination, searchText, filterStatus, showDetail, detail, flatTree,
                 checkQty, checkWarehouseId, warehouses, checkLoading, checkResult, checkShortage, bomIssueLoading, issueMaterialsByBom,
                 showForm, editId, formLoading, formError, form,
                 bomLevelOptions, formNamingReview,
@@ -14818,7 +14948,8 @@
                 debounceLoad, loadBOMs, viewDetail, openCreate, openEdit,
                 openNamingGovernance, loadNamingGovernance,
                 addItem, toggleBomBulkPaste, clearBomBulkPaste, applyBomBulkPaste, onBomMaterialChange, submitForm, deleteBOM, duplicateBOM,
-                showVersions, restoreVersion, handleBomImportFile, handleBomImportDrop, submitBomImport, closeBomImportModal
+                showVersions, restoreVersion, handleBomImportFile, handleBomImportDrop, submitBomImport, closeBomImportModal,
+                closeBomForm, onBomOverlayMouseDown, onBomOverlayMouseUp
             };
         }
     };
@@ -14834,7 +14965,7 @@
             <!-- 顶部操作栏 -->
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
                 <h3 class="text-base font-semibold text-gray-800">用户列表</h3>
-                <button v-if="canAction('users', 'add')" @click="showCreateModal = true"
+                <button v-if="canAction('users', 'add')" @click="openCreateUser"
                         class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg transition flex items-center gap-2">
                     <i data-lucide="user-plus" class="w-4 h-4"></i>
                     添加用户
@@ -14889,7 +15020,8 @@
             <!-- 创建/编辑用户弹窗 -->
             <div v-if="showCreateModal || showEditModal"
                  class="fixed inset-0 bg-black/40 flex items-center justify-center z-40"
-                 @click.self="closeModals">
+                 @mousedown.self="onUserOverlayMouseDown"
+                 @mouseup.self="onUserOverlayMouseUp">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">
                         {{ showEditModal ? '编辑用户' : '添加用户' }}
@@ -14946,7 +15078,8 @@
             <!-- 重置密码弹窗 -->
             <div v-if="showResetPwdModal"
                  class="fixed inset-0 bg-black/40 flex items-center justify-center z-40"
-                 @click.self="closeResetPwdModal">
+                 @mousedown.self="onResetPwdOverlayMouseDown"
+                 @mouseup.self="onResetPwdOverlayMouseUp">
                 <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 mx-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-1">重置密码</h3>
                     <p class="text-sm text-gray-500 mb-4">为用户 {{ resetPwdForm.displayName }} 设置新密码</p>
@@ -14995,6 +15128,8 @@
             const resetPwdLoading = ref(false);
             const resetPwdError = ref('');
             const resetPwdForm = ref({ userId: null, displayName: '', newPassword: '', confirmPassword: '' });
+            const userModalCloseGuard = createOverlayCloseGuard();
+            const resetPwdModalCloseGuard = createOverlayCloseGuard();
             const roleLabelMap = { admin: '管理员', editor: '编辑者', viewer: '查看者' };
 
             function roleClass(role) {
@@ -15015,6 +15150,7 @@
             }
 
             function closeModals() {
+                userModalCloseGuard.reset();
                 showCreateModal.value = false;
                 showEditModal.value = false;
                 formError.value = '';
@@ -15022,10 +15158,35 @@
             }
 
             function closeResetPwdModal() {
+                resetPwdModalCloseGuard.reset();
                 showResetPwdModal.value = false;
                 resetPwdLoading.value = false;
                 resetPwdError.value = '';
                 resetPwdForm.value = { userId: null, displayName: '', newPassword: '', confirmPassword: '' };
+            }
+
+            function onUserOverlayMouseDown(event) {
+                userModalCloseGuard.onOverlayMouseDown(event);
+            }
+
+            function onUserOverlayMouseUp(event) {
+                userModalCloseGuard.onOverlayMouseUp(closeModals, event);
+            }
+
+            function onResetPwdOverlayMouseDown(event) {
+                resetPwdModalCloseGuard.onOverlayMouseDown(event);
+            }
+
+            function onResetPwdOverlayMouseUp(event) {
+                resetPwdModalCloseGuard.onOverlayMouseUp(closeResetPwdModal, event);
+            }
+
+            function openCreateUser() {
+                editingUserId.value = null;
+                formError.value = '';
+                userForm.value = { username: '', password: '', displayName: '', role: 'viewer', isActive: true };
+                showCreateModal.value = true;
+                userModalCloseGuard.reset();
             }
 
             function editUser(user) {
@@ -15037,6 +15198,7 @@
                     isActive: !!user.is_active
                 };
                 showEditModal.value = true;
+                userModalCloseGuard.reset();
             }
 
             function openResetPasswordModal(user) {
@@ -15048,6 +15210,7 @@
                     confirmPassword: ''
                 };
                 showResetPwdModal.value = true;
+                resetPwdModalCloseGuard.reset();
             }
 
             async function submitCreate() {
@@ -15111,7 +15274,8 @@
                 roleLabelMap, roleClass, closeModals, editUser, canAction,
                 showResetPwdModal, resetPwdLoading, resetPwdError, resetPwdForm,
                 closeResetPwdModal, openResetPasswordModal, submitResetPassword,
-                submitCreate, submitEdit
+                submitCreate, submitEdit, onUserOverlayMouseDown, onUserOverlayMouseUp, openCreateUser,
+                onResetPwdOverlayMouseDown, onResetPwdOverlayMouseUp
             };
         }
     };
@@ -15596,6 +15760,40 @@
                 quickAccessItems, visibleQuickAccessItems, isQuickAccessActive, handleMainScroll, toggleQuickAccessCompact, goQuickAccess,
                 openSystemInfo, refreshSystemInfo
             };
+        }
+    });
+
+    app.directive('safe-overlay-close', {
+        beforeMount(el, binding) {
+            el.__safeOverlayCloseArmed = false;
+            el.__safeOverlayCloseHandler = typeof binding.value === 'function' ? binding.value : null;
+            el.__safeOverlayPointerDown = (event) => {
+                el.__safeOverlayCloseArmed = event.target === el;
+            };
+            el.__safeOverlayPointerUp = (event) => {
+                const shouldClose = el.__safeOverlayCloseArmed && event.target === el;
+                el.__safeOverlayCloseArmed = false;
+                if (shouldClose && typeof el.__safeOverlayCloseHandler === 'function') {
+                    el.__safeOverlayCloseHandler(event);
+                }
+            };
+            el.addEventListener('pointerdown', el.__safeOverlayPointerDown);
+            el.addEventListener('pointerup', el.__safeOverlayPointerUp);
+        },
+        updated(el, binding) {
+            el.__safeOverlayCloseHandler = typeof binding.value === 'function' ? binding.value : null;
+        },
+        unmounted(el) {
+            if (el.__safeOverlayPointerDown) {
+                el.removeEventListener('pointerdown', el.__safeOverlayPointerDown);
+            }
+            if (el.__safeOverlayPointerUp) {
+                el.removeEventListener('pointerup', el.__safeOverlayPointerUp);
+            }
+            delete el.__safeOverlayPointerDown;
+            delete el.__safeOverlayPointerUp;
+            delete el.__safeOverlayCloseHandler;
+            delete el.__safeOverlayCloseArmed;
         }
     });
 
