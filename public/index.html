@@ -2071,30 +2071,13 @@
                                         <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
                                     </select>
                                 </div>
-                                <div>
+                                <div v-if="!config.multiItem">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">物料 <span class="text-red-500">*</span></label>
                                     <material-search-select v-model="form.materialId"
                                                             :initial-items="materials"
                                                             placeholder="搜索名称 / 编码 / 拼音 / 规格"
                                                             @change="refreshSnapshot" />
                                 </div>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">数量 <span class="text-red-500">*</span></label>
-                                    <input v-model.number="form.quantity" @input="handleQuantityInput" type="number" min="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">单价 (¥)</label>
-                                    <input v-model.number="form.unitPrice" @input="handleUnitPriceInput" type="number" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">总价 (¥)</label>
-                                    <input v-model.number="form.totalPrice" @input="handleTotalPriceInput" type="number" min="0" step="0.01" placeholder="可输入总价反算单价" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                            </div>
-                            <div class="text-xs text-gray-400 -mt-1">支持双向联动：输入数量 + 单价自动计算总价，输入数量 + 总价也会自动反算单价。</div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
                                         {{ config.counterpartyLabel }}
@@ -2117,10 +2100,95 @@
                                         {{ supplierOptions.length ? '已优先带出物料已维护的供应商，可直接选择。' : '当前物料尚未维护供应商记录，需手工填写来源。' }}
                                     </div>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">单据号 / 关联单号</label>
-                                    <input v-model="form.referenceNo" type="text" placeholder="留空则自动生成轻量单据号" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <template v-if="config.multiItem">
+                                <div class="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 space-y-3">
+                                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <div class="text-sm font-semibold text-emerald-900">本次收货物料明细</div>
+                                            <p class="text-xs text-emerald-700 mt-1">一张收货单可录入多种物料，每行填写数量、单价或总价。</p>
+                                        </div>
+                                        <button type="button" @click="addFormItem" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-3 py-2 transition">
+                                            <i data-lucide="plus-circle" class="w-4 h-4"></i> 添加物料
+                                        </button>
+                                    </div>
+                                    <div class="overflow-x-auto rounded-lg border border-emerald-100 bg-white">
+                                        <table class="w-full min-w-[820px]">
+                                            <thead class="bg-emerald-50">
+                                                <tr>
+                                                    <th class="text-left px-3 py-2 text-xs text-emerald-700">物料</th>
+                                                    <th class="text-center px-3 py-2 text-xs text-emerald-700 w-28">数量</th>
+                                                    <th class="text-center px-3 py-2 text-xs text-emerald-700 w-32">单价(¥)</th>
+                                                    <th class="text-center px-3 py-2 text-xs text-emerald-700 w-36">总价(¥)</th>
+                                                    <th class="text-left px-3 py-2 text-xs text-emerald-700 w-36">备注</th>
+                                                    <th class="w-10"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-emerald-50">
+                                                <tr v-for="(item, idx) in form.items" :key="item.uid">
+                                                    <td class="px-3 py-2">
+                                                        <material-search-select v-model="item.materialId"
+                                                                                :initial-items="materials"
+                                                                                placeholder="搜索名称 / 编码 / 拼音 / 规格"
+                                                                                @change="onFormItemMaterialChange(idx)" />
+                                                    </td>
+                                                    <td class="px-3 py-2">
+                                                        <input v-model.number="item.quantity" @input="handleItemQuantityInput(item)" type="number" min="1" required class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-center outline-none focus:ring-1 focus:ring-emerald-500">
+                                                    </td>
+                                                    <td class="px-3 py-2">
+                                                        <input v-model.number="item.unitPrice" @input="handleItemUnitPriceInput(item)" type="number" min="0" step="0.01" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-center outline-none focus:ring-1 focus:ring-emerald-500">
+                                                    </td>
+                                                    <td class="px-3 py-2">
+                                                        <input v-model.number="item.totalPrice" @input="handleItemTotalPriceInput(item)" type="number" min="0" step="0.01" placeholder="可反算单价" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm text-center font-semibold text-gray-800 outline-none focus:ring-1 focus:ring-emerald-500">
+                                                    </td>
+                                                    <td class="px-3 py-2">
+                                                        <input v-model.trim="item.notes" type="text" placeholder="可选" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm outline-none focus:ring-1 focus:ring-emerald-500">
+                                                    </td>
+                                                    <td class="px-3 py-2 text-center">
+                                                        <button type="button" @click="removeFormItem(idx)" :disabled="form.items.length <= 1" class="text-red-400 hover:text-red-600 disabled:opacity-30 disabled:hover:text-red-400">
+                                                            <i data-lucide="x" class="w-4 h-4"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div class="rounded-lg border border-emerald-100 bg-white px-3 py-2">
+                                            <div class="text-xs text-emerald-600">物料行数</div>
+                                            <div class="text-lg font-semibold text-emerald-900">{{ formItemCount }}</div>
+                                        </div>
+                                        <div class="rounded-lg border border-emerald-100 bg-white px-3 py-2">
+                                            <div class="text-xs text-emerald-600">数量合计</div>
+                                            <div class="text-lg font-semibold text-emerald-900">{{ formQuantityTotal }}</div>
+                                        </div>
+                                        <div class="rounded-lg border border-emerald-100 bg-white px-3 py-2">
+                                            <div class="text-xs text-emerald-600">金额合计</div>
+                                            <div class="text-lg font-semibold text-emerald-900">¥{{ formAmountTotal.toFixed(2) }}</div>
+                                        </div>
+                                    </div>
                                 </div>
+                            </template>
+                            <template v-else>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">数量 <span class="text-red-500">*</span></label>
+                                        <input v-model.number="form.quantity" @input="handleQuantityInput" type="number" min="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">单价 (¥)</label>
+                                        <input v-model.number="form.unitPrice" @input="handleUnitPriceInput" type="number" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">总价 (¥)</label>
+                                        <input v-model.number="form.totalPrice" @input="handleTotalPriceInput" type="number" min="0" step="0.01" placeholder="可输入总价反算单价" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+                                <div class="text-xs text-gray-400 -mt-1">支持双向联动：输入数量 + 单价自动计算总价，输入数量 + 总价也会自动反算单价。</div>
+                            </template>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">单据号 / 关联单号</label>
+                                <input v-model="form.referenceNo" type="text" placeholder="留空则自动生成轻量单据号" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
@@ -2461,6 +2529,7 @@
                     quantity: 1,
                     unitPrice: null,
                     totalPrice: null,
+                    items: config.multiItem ? [createEmptyFormItem()] : [],
                     counterparty: '',
                     referenceNo: '',
                     notes: ''
@@ -2486,6 +2555,23 @@
                         return null;
                     }
                     return Number(form.value.totalPrice);
+                });
+                const effectiveFormItems = computed(() => {
+                    if (!config.multiItem) return [];
+                    return (form.value.items || []).filter(item => item.materialId && Number(item.quantity || 0) > 0);
+                });
+                const formItemCount = computed(() => effectiveFormItems.value.length);
+                const formQuantityTotal = computed(() => {
+                    const total = effectiveFormItems.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+                    return Number.isInteger(total) ? total : Number(total.toFixed(2));
+                });
+                const formAmountTotal = computed(() => {
+                    return effectiveFormItems.value.reduce((sum, item) => {
+                        const totalPrice = normalizeMoneyInput(item.totalPrice);
+                        if (totalPrice !== null) return sum + totalPrice;
+                        const unitPrice = normalizeMoneyInput(item.unitPrice);
+                        return unitPrice === null ? sum : sum + Number(item.quantity || 0) * unitPrice;
+                    }, 0);
                 });
                 const supplierOptions = computed(() => {
                     const seen = new Set();
@@ -2542,6 +2628,81 @@
                     const numeric = Number(value);
                     if (!Number.isFinite(numeric)) return null;
                     return roundMoney(numeric);
+                }
+
+                function createEmptyFormItem(overrides = {}) {
+                    return {
+                        uid: `receive-item-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                        materialId: '',
+                        quantity: 1,
+                        unitPrice: null,
+                        totalPrice: null,
+                        notes: '',
+                        lastPriceEditedField: 'unitPrice',
+                        ...overrides
+                    };
+                }
+
+                function ensureFormItems() {
+                    if (!config.multiItem) return;
+                    if (!Array.isArray(form.value.items) || form.value.items.length === 0) {
+                        form.value.items = [createEmptyFormItem()];
+                    }
+                }
+
+                function addFormItem() {
+                    ensureFormItems();
+                    form.value.items.push(createEmptyFormItem());
+                    nextTick(() => lucide.createIcons());
+                }
+
+                function removeFormItem(index) {
+                    ensureFormItems();
+                    if (form.value.items.length <= 1) return;
+                    form.value.items.splice(index, 1);
+                    if (index === 0) {
+                        loadMaterialCounterpartyOptions(form.value.items[0]?.materialId || '');
+                        refreshSnapshot();
+                    }
+                }
+
+                function syncItemTotalPriceFromUnitPrice(item) {
+                    const quantity = Number(item.quantity || 0);
+                    const unitPrice = normalizeMoneyInput(item.unitPrice);
+                    item.unitPrice = unitPrice;
+                    item.totalPrice = unitPrice === null ? null : roundMoney(quantity * unitPrice);
+                }
+
+                function syncItemUnitPriceFromTotalPrice(item) {
+                    const quantity = Number(item.quantity || 0);
+                    const totalPrice = normalizeMoneyInput(item.totalPrice);
+                    item.totalPrice = totalPrice;
+                    item.unitPrice = totalPrice === null || quantity <= 0 ? null : roundMoney(totalPrice / quantity);
+                }
+
+                function handleItemUnitPriceInput(item) {
+                    item.lastPriceEditedField = 'unitPrice';
+                    syncItemTotalPriceFromUnitPrice(item);
+                }
+
+                function handleItemTotalPriceInput(item) {
+                    item.lastPriceEditedField = 'totalPrice';
+                    syncItemUnitPriceFromTotalPrice(item);
+                }
+
+                function handleItemQuantityInput(item) {
+                    if (item.lastPriceEditedField === 'totalPrice') {
+                        syncItemUnitPriceFromTotalPrice(item);
+                    } else {
+                        syncItemTotalPriceFromUnitPrice(item);
+                    }
+                }
+
+                async function onFormItemMaterialChange(index) {
+                    if (index === 0) {
+                        await loadMaterialCounterpartyOptions(form.value.items?.[0]?.materialId || '');
+                        await refreshSnapshot();
+                    }
                 }
 
                 function syncTotalPriceFromUnitPrice() {
@@ -2696,20 +2857,21 @@
 
                 async function refreshSnapshot() {
                     stockSnapshot.value = null;
-                    if (!form.value.warehouseId || !form.value.materialId) return;
+                    const materialId = config.multiItem ? form.value.items?.[0]?.materialId : form.value.materialId;
+                    if (!form.value.warehouseId || !materialId) return;
                     try {
-                        const data = await api.get('/api/warehouses/' + form.value.warehouseId + '/materials/' + form.value.materialId + '/stock');
+                        const data = await api.get('/api/warehouses/' + form.value.warehouseId + '/materials/' + materialId + '/stock');
                         stockSnapshot.value = data;
                     } catch (e) {
                         console.error(e);
                     }
                 }
 
-                async function loadMaterialCounterpartyOptions() {
+                async function loadMaterialCounterpartyOptions(materialId = form.value.materialId) {
                     selectedMaterialSuppliers.value = [];
-                    if (!config.useSupplierSelector || !form.value.materialId) return;
+                    if (!config.useSupplierSelector || !materialId) return;
                     try {
-                        const detailData = await api.get('/api/materials/' + form.value.materialId);
+                        const detailData = await api.get('/api/materials/' + materialId);
                         const combined = [
                             ...(detailData.suppliers || []),
                             ...(detailData.supplierPrices || [])
@@ -2727,23 +2889,41 @@
                 }
 
                 function buildDocumentPayload() {
-                    const quantity = Number(form.value.quantity || 0);
-                    const explicitUnitPrice = normalizeMoneyInput(form.value.unitPrice);
-                    const explicitTotalPrice = normalizeMoneyInput(form.value.totalPrice);
-                    const finalUnitPrice = explicitUnitPrice !== null
-                        ? explicitUnitPrice
-                        : (explicitTotalPrice !== null && quantity > 0 ? roundMoney(explicitTotalPrice / quantity) : null);
+                    const items = config.multiItem
+                        ? effectiveFormItems.value.map(item => {
+                            const quantity = Number(item.quantity || 0);
+                            const explicitUnitPrice = normalizeMoneyInput(item.unitPrice);
+                            const explicitTotalPrice = normalizeMoneyInput(item.totalPrice);
+                            const finalUnitPrice = explicitUnitPrice !== null
+                                ? explicitUnitPrice
+                                : (explicitTotalPrice !== null && quantity > 0 ? roundMoney(explicitTotalPrice / quantity) : null);
+                            return {
+                                materialId: Number(item.materialId),
+                                quantity,
+                                unitPrice: finalUnitPrice,
+                                notes: item.notes || null
+                            };
+                        })
+                        : (() => {
+                            const quantity = Number(form.value.quantity || 0);
+                            const explicitUnitPrice = normalizeMoneyInput(form.value.unitPrice);
+                            const explicitTotalPrice = normalizeMoneyInput(form.value.totalPrice);
+                            const finalUnitPrice = explicitUnitPrice !== null
+                                ? explicitUnitPrice
+                                : (explicitTotalPrice !== null && quantity > 0 ? roundMoney(explicitTotalPrice / quantity) : null);
+                            return [{
+                                materialId: Number(form.value.materialId),
+                                quantity,
+                                unitPrice: finalUnitPrice
+                            }];
+                        })();
                     return {
                         docType: config.docType,
                         warehouseId: Number(form.value.warehouseId),
                         counterparty: String(form.value.counterparty || '').trim(),
                         referenceNo: form.value.referenceNo,
                         notes: form.value.notes,
-                        items: [{
-                            materialId: Number(form.value.materialId),
-                            quantity,
-                            unitPrice: finalUnitPrice
-                        }]
+                        items
                     };
                 }
 
@@ -2757,6 +2937,10 @@
                     formError.value = '';
                     if (config.requireCounterparty && !String(form.value.counterparty || '').trim()) {
                         formError.value = `请选择或填写${config.counterpartyLabel}`;
+                        return;
+                    }
+                    if (config.multiItem && effectiveFormItems.value.length === 0) {
+                        formError.value = '请至少添加一条有效物料明细';
                         return;
                     }
                     submitting.value = true;
@@ -2883,6 +3067,7 @@
                         quantity: 1,
                         unitPrice: null,
                         totalPrice: null,
+                        items: config.multiItem ? [createEmptyFormItem()] : [],
                         counterparty: '',
                         referenceNo: '',
                         notes: ''
@@ -2923,16 +3108,27 @@
                     editingDocumentId.value = document.id;
                     editingDocumentStatus.value = document.documentStatus;
                     selectedMaterialSuppliers.value = [];
+                    const documentItems = (document.items || []).map(item => createEmptyFormItem({
+                        materialId: item.materialId ? String(item.materialId) : '',
+                        quantity: Number(item.quantity || 1),
+                        unitPrice: item.unitPrice ?? null,
+                        totalPrice: item.totalPrice ?? ((item.unitPrice ?? null) !== null ? roundMoney(Number(item.quantity || 0) * Number(item.unitPrice || 0)) : null),
+                        notes: item.notes || ''
+                    }));
                     form.value = {
                         warehouseId: document.warehouseId ? String(document.warehouseId) : '',
                         materialId: document.items?.[0]?.materialId ? String(document.items[0].materialId) : '',
                         quantity: Number(document.items?.[0]?.quantity || 1),
                         unitPrice: document.items?.[0]?.unitPrice ?? null,
                         totalPrice: document.items?.[0]?.totalPrice ?? ((document.items?.[0]?.unitPrice ?? null) !== null ? roundMoney(Number(document.items?.[0]?.quantity || 0) * Number(document.items?.[0]?.unitPrice || 0)) : null),
+                        items: config.multiItem ? (documentItems.length ? documentItems : [createEmptyFormItem()]) : [],
                         counterparty: document.counterparty || '',
                         referenceNo: document.documentNo || '',
                         notes: document.notes || ''
                     };
+                    if (config.multiItem) {
+                        loadMaterialCounterpartyOptions(form.value.items?.[0]?.materialId || '');
+                    }
                     nextTick(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
                 }
 
@@ -3048,6 +3244,10 @@
                     if (materialId) {
                         form.value.materialId = materialId;
                         filters.value.materialId = materialId;
+                        if (config.multiItem) {
+                            ensureFormItems();
+                            form.value.items[0].materialId = materialId;
+                        }
                     }
                     if (editDraftId) {
                         try {
@@ -3066,17 +3266,20 @@
                 filters.value = createDefaultFilters();
                 watch(() => form.value.warehouseId, refreshSnapshot);
                 watch(() => form.value.materialId, async () => {
+                    if (config.multiItem) return;
                     await loadMaterialCounterpartyOptions();
                     await refreshSnapshot();
                 });
                 watch(() => form.value.quantity, () => {
+                    if (config.multiItem) return;
                     if (syncingPriceFields) return;
                     handleQuantityInput();
                 });
                 onMounted(async () => {
+                    ensureFormItems();
                     await loadOptions();
                     await applyRoutePrefill();
-                    await loadMaterialCounterpartyOptions();
+                    await loadMaterialCounterpartyOptions(config.multiItem ? form.value.items?.[0]?.materialId : form.value.materialId);
                     await refreshSnapshot();
                     if (filters.value.warehouseId || filters.value.materialId) {
                         await Promise.all([loadMovements(1), loadDocuments(1)]);
@@ -3085,7 +3288,8 @@
 
                 return {
                     config, warehouses, materials, stockSnapshot, lastSubmittedDoc, editingDocumentId, selectedDocument, viewMode, movementItems, movementSummary, movementPagination, documentPagination, loadingMovements, loadingDocuments, activePagination, activeLoading, canExecute,
-                    documentItems, documentStatusCards, totalMovementQuantity, rangeLabel, filterSummaryLabel, filters, form, formError, submitting, saveDraft, submitDocumentForm, submitAndPostDocumentForm, changeDocumentStatus, editDraftDocument, formatDocumentStatus, documentStatusClass, resetForm, applyFilters, resetFilters, changePage, setViewMode, selectDocument, exportMovements, exportDocument, printDocument, formTotalPrice, supplierOptions, handleUnitPriceInput, handleTotalPriceInput, handleQuantityInput
+                    documentItems, documentStatusCards, totalMovementQuantity, rangeLabel, filterSummaryLabel, filters, form, formError, submitting, saveDraft, submitDocumentForm, submitAndPostDocumentForm, changeDocumentStatus, editDraftDocument, formatDocumentStatus, documentStatusClass, resetForm, applyFilters, resetFilters, changePage, setViewMode, selectDocument, exportMovements, exportDocument, printDocument, formTotalPrice, supplierOptions, handleUnitPriceInput, handleTotalPriceInput, handleQuantityInput,
+                    formItemCount, formQuantityTotal, formAmountTotal, addFormItem, removeFormItem, onFormItemMaterialChange, handleItemQuantityInput, handleItemUnitPriceInput, handleItemTotalPriceInput
                 };
             }
         };
@@ -3101,6 +3305,7 @@
         endpoint: 'stock-in',
         permissionResource: 'receive',
         docType: 'receive_execution',
+        multiItem: true,
         type: 'in',
         source: 'manual_in',
         sourceLabel: '手工收货 / 回库',
