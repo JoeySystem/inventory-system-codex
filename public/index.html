@@ -5122,15 +5122,16 @@
         title: '系统',
         icon: 'settings-2',
         description: '统一承接系统设置、仓库资料与用户权限等基础配置能力。',
-        highlights: ['仓库资料', '用户权限', '系统配置'],
+        highlights: ['仓库资料', '用户权限', '数据维护'],
         scenarios: [
             { title: '仓库资料维护', description: '维护仓库主档、联系人与基础配置，支撑后续执行页面。' },
             { title: '账号与权限', description: '维护系统账号、角色和权限边界。' },
-            { title: '基础配置收口', description: '逐步把散落在旧页面中的系统配置收拢到这里。' }
+            { title: '数据安全维护', description: '集中处理数据库备份、恢复和迁移包导出。' }
         ],
         plannedDocs: [
             { name: '仓库资料页', description: '当前已独立，仅负责仓库主档、地址、联系人与配置维护。', stage: '当前可用' },
-            { name: '权限配置页', description: '当前已有用户管理与基础权限控制，独立权限配置页仍在规划中。', stage: '规划中' }
+            { name: '权限配置页', description: '当前已有用户管理与基础权限控制，独立权限配置页仍在规划中。', stage: '规划中' },
+            { name: '数据维护页', description: '当前已支持数据库备份、迁移包导出和受控恢复。', stage: '当前可用' }
         ],
         groups: [
             {
@@ -5138,12 +5139,13 @@
                 description: '用于沉淀基础资料，不直接承接日常执行动作。',
                 cards: [
                     { path: '/warehouse-master', label: '仓库资料', tagline: '基础配置', icon: 'warehouse', permission: 'warehouses', stage: '当前可用', description: '仓库主档已独立，仅承接基础信息维护。' },
-                    { path: '/users', label: '用户管理', tagline: '权限与账号', icon: 'users', permission: 'users', stage: '当前可用', description: '用于维护用户账号和基础权限。' }
+                    { path: '/users', label: '用户管理', tagline: '权限与账号', icon: 'users', permission: 'users', stage: '当前可用', description: '用于维护用户账号和基础权限。' },
+                    { path: '/data-maintenance', label: '数据维护', tagline: '备份恢复', icon: 'database-backup', permission: 'users', stage: '当前可用', description: '管理员用于创建数据库备份、导出迁移包和受控恢复数据。' }
                 ]
             }
         ],
         notes: [
-            '系统域用于集中承接基础资料、用户、权限等配置，不承接日常收发转盘操作。'
+            '系统域用于集中承接基础资料、用户、权限和数据安全维护，不承接日常收发转盘操作。'
         ]
     });
 
@@ -15485,6 +15487,298 @@
         }
     };
 
+    // 数据维护页面
+    const DataMaintenancePage = {
+        template: `
+        <div class="space-y-6">
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div class="flex items-start gap-3">
+                    <i data-lucide="shield-alert" class="w-5 h-5 text-amber-600 mt-0.5"></i>
+                    <div>
+                        <div class="text-sm font-semibold text-amber-900">数据安全操作，仅管理员使用</div>
+                        <p class="text-sm text-amber-800 mt-1">
+                            备份和迁移包不会改变当前数据；恢复会替换当前数据库。系统会在恢复前自动生成一份恢复前备份。
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                    <div class="text-sm text-gray-500">当前数据库</div>
+                    <div class="text-2xl font-bold text-gray-900 mt-2">{{ status.dbSizeLabel || '-' }}</div>
+                    <div class="text-xs text-gray-500 mt-2">状态：{{ status.dbExists ? '已检测到数据库文件' : '未检测到数据库文件' }}</div>
+                </div>
+                <div class="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                    <div class="text-sm text-gray-500">数据库备份</div>
+                    <div class="text-2xl font-bold text-gray-900 mt-2">{{ status.backups.length }} 个</div>
+                    <div class="text-xs text-gray-500 mt-2">保存在服务器 backups 目录</div>
+                </div>
+                <div class="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                    <div class="text-sm text-gray-500">迁移包</div>
+                    <div class="text-2xl font-bold text-gray-900 mt-2">{{ status.migrationPackages.length }} 个</div>
+                    <div class="text-xs text-gray-500 mt-2">用于拷贝到另一台电脑部署</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                <section class="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">立即备份</h3>
+                            <p class="text-sm text-gray-500 mt-1">生成当前数据库的 .db 备份文件。</p>
+                        </div>
+                        <i data-lucide="database-backup" class="w-5 h-5 text-indigo-500"></i>
+                    </div>
+                    <button @click="createBackup" :disabled="backupLoading"
+                            class="mt-5 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-lg py-2.5 text-sm font-medium">
+                        {{ backupLoading ? '备份中...' : '创建数据库备份' }}
+                    </button>
+                </section>
+
+                <section class="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">导出迁移包</h3>
+                            <p class="text-sm text-gray-500 mt-1">打包数据库、校验文件和迁移说明，适合 U 盘拷贝。</p>
+                        </div>
+                        <i data-lucide="package-open" class="w-5 h-5 text-emerald-500"></i>
+                    </div>
+                    <button @click="exportMigrationPackage" :disabled="migrationLoading"
+                            class="mt-5 w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-lg py-2.5 text-sm font-medium">
+                        {{ migrationLoading ? '打包中...' : '生成并下载迁移包' }}
+                    </button>
+                </section>
+
+                <section class="bg-white border border-rose-100 rounded-xl p-5 shadow-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-semibold text-rose-900">恢复数据库</h3>
+                            <p class="text-sm text-rose-700 mt-1">会替换当前数据库。请确认选中的是正确备份文件。</p>
+                        </div>
+                        <i data-lucide="rotate-ccw" class="w-5 h-5 text-rose-500"></i>
+                    </div>
+                    <input ref="restoreFileInput" type="file" accept=".db,.sqlite,.sqlite3"
+                           @change="handleRestoreFileChange"
+                           class="mt-4 block w-full text-sm text-gray-600 file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-700">
+                    <input v-model="restoreConfirmText" type="text" placeholder="输入：确认恢复"
+                           class="mt-3 w-full px-3 py-2 border border-rose-200 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none">
+                    <button @click="restoreDatabase" :disabled="restoreLoading || !restoreFile || restoreConfirmText !== '确认恢复'"
+                            class="mt-3 w-full bg-rose-600 hover:bg-rose-700 disabled:bg-rose-200 disabled:text-rose-500 text-white rounded-lg py-2.5 text-sm font-medium">
+                        {{ restoreLoading ? '恢复中...' : '确认恢复数据库' }}
+                    </button>
+                </section>
+            </div>
+
+            <section class="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base font-semibold text-gray-900">备份文件</h3>
+                        <p class="text-sm text-gray-500 mt-1">可下载数据库备份，用于离线保存或迁移。</p>
+                    </div>
+                    <button @click="loadStatus" class="text-sm px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">刷新</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[760px]">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">文件名</th>
+                                <th class="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">大小</th>
+                                <th class="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">更新时间</th>
+                                <th class="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr v-for="file in status.backups" :key="file.filename" class="hover:bg-gray-50">
+                                <td class="px-5 py-3 text-sm font-medium text-gray-800">{{ file.filename }}</td>
+                                <td class="px-5 py-3 text-sm text-gray-600">{{ file.sizeLabel }}</td>
+                                <td class="px-5 py-3 text-sm text-gray-500">{{ formatDateTime(file.modifiedAt) }}</td>
+                                <td class="px-5 py-3 text-right">
+                                    <button @click="downloadFile('/api/maintenance/backups/' + encodeURIComponent(file.filename) + '/download', file.filename)"
+                                            class="text-indigo-600 hover:text-indigo-800 text-sm">下载</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="!status.backups.length" class="text-center py-10 text-gray-400 text-sm">暂无备份文件</div>
+            </section>
+
+            <section class="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-100">
+                    <h3 class="text-base font-semibold text-gray-900">迁移包记录</h3>
+                    <p class="text-sm text-gray-500 mt-1">迁移包包含数据库、校验信息和迁移说明。</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[760px]">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">文件名</th>
+                                <th class="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">大小</th>
+                                <th class="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">更新时间</th>
+                                <th class="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr v-for="file in status.migrationPackages" :key="file.filename" class="hover:bg-gray-50">
+                                <td class="px-5 py-3 text-sm font-medium text-gray-800">{{ file.filename }}</td>
+                                <td class="px-5 py-3 text-sm text-gray-600">{{ file.sizeLabel }}</td>
+                                <td class="px-5 py-3 text-sm text-gray-500">{{ formatDateTime(file.modifiedAt) }}</td>
+                                <td class="px-5 py-3 text-right">
+                                    <button @click="downloadFile('/api/maintenance/migration-packages/' + encodeURIComponent(file.filename) + '/download', file.filename)"
+                                            class="text-indigo-600 hover:text-indigo-800 text-sm">下载</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-if="!status.migrationPackages.length" class="text-center py-10 text-gray-400 text-sm">暂无迁移包</div>
+            </section>
+        </div>
+        `,
+        setup() {
+            const showToast = inject('showToast');
+            const status = ref({ dbExists: false, dbSizeLabel: '-', backups: [], migrationPackages: [] });
+            const backupLoading = ref(false);
+            const migrationLoading = ref(false);
+            const restoreLoading = ref(false);
+            const restoreFile = ref(null);
+            const restoreConfirmText = ref('');
+            const restoreFileInput = ref(null);
+
+            async function loadStatus() {
+                try {
+                    status.value = await api.get('/api/maintenance/status');
+                    nextTick(() => lucide.createIcons());
+                } catch (e) {
+                    showToast(e.message || '加载数据维护状态失败', 'error');
+                }
+            }
+
+            function formatDateTime(value) {
+                if (!value) return '-';
+                return new Date(value).toLocaleString('zh-CN', { hour12: false });
+            }
+
+            async function createBackup() {
+                backupLoading.value = true;
+                try {
+                    const result = await api.post('/api/maintenance/backups', { reason: 'manual' });
+                    showToast(`已创建备份：${result.filename}`, 'success');
+                    await loadStatus();
+                } catch (e) {
+                    showToast(e.message || '创建备份失败', 'error');
+                } finally {
+                    backupLoading.value = false;
+                }
+            }
+
+            function filenameFromResponse(response, fallback) {
+                const disposition = response.headers.get('Content-Disposition') || '';
+                const encoded = disposition.match(/filename\\*=UTF-8''([^;]+)/i);
+                if (encoded) return decodeURIComponent(encoded[1]);
+                const plain = disposition.match(/filename="?([^"]+)"?/i);
+                return plain ? plain[1] : fallback;
+            }
+
+            async function downloadBlobFromResponse(response, fallbackFilename) {
+                if (!response.ok) {
+                    let message = '下载失败';
+                    try {
+                        const json = await response.json();
+                        message = json.error?.message || message;
+                    } catch (_e) {}
+                    throw new Error(message);
+                }
+                const blob = await response.blob();
+                const filename = filenameFromResponse(response, fallbackFilename);
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+            }
+
+            async function exportMigrationPackage() {
+                migrationLoading.value = true;
+                try {
+                    const response = await fetch('/api/maintenance/migration-package', {
+                        method: 'POST',
+                        credentials: 'same-origin'
+                    });
+                    await downloadBlobFromResponse(response, 'ovo-migration-package.zip');
+                    showToast('迁移包已生成并开始下载', 'success');
+                    await loadStatus();
+                } catch (e) {
+                    showToast(e.message || '生成迁移包失败', 'error');
+                } finally {
+                    migrationLoading.value = false;
+                }
+            }
+
+            async function downloadFile(url, fallbackFilename) {
+                try {
+                    const response = await fetch(url, { credentials: 'same-origin' });
+                    await downloadBlobFromResponse(response, fallbackFilename);
+                } catch (e) {
+                    showToast(e.message || '下载失败', 'error');
+                }
+            }
+
+            function handleRestoreFileChange(event) {
+                restoreFile.value = event.target.files?.[0] || null;
+            }
+
+            async function restoreDatabase() {
+                if (!restoreFile.value) {
+                    showToast('请先选择数据库备份文件', 'warning');
+                    return;
+                }
+                if (restoreConfirmText.value !== '确认恢复') {
+                    showToast('请先输入“确认恢复”', 'warning');
+                    return;
+                }
+                restoreLoading.value = true;
+                try {
+                    const formData = new FormData();
+                    formData.append('database', restoreFile.value);
+                    formData.append('confirmText', restoreConfirmText.value);
+                    const response = await fetch('/api/maintenance/restore', {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'same-origin'
+                    });
+                    const json = await response.json();
+                    if (!response.ok || !json.success) {
+                        throw new Error(json.error?.message || '恢复失败');
+                    }
+                    showToast(json.data?.message || '数据库已恢复', 'success', 5000);
+                    restoreFile.value = null;
+                    restoreConfirmText.value = '';
+                    if (restoreFileInput.value) restoreFileInput.value.value = '';
+                    await loadStatus();
+                } catch (e) {
+                    showToast(e.message || '恢复失败', 'error', 5000);
+                } finally {
+                    restoreLoading.value = false;
+                }
+            }
+
+            onMounted(async () => {
+                await loadStatus();
+                nextTick(() => lucide.createIcons());
+            });
+
+            return {
+                status, backupLoading, migrationLoading, restoreLoading, restoreFile, restoreConfirmText, restoreFileInput,
+                loadStatus, createBackup, exportMigrationPackage, downloadFile, handleRestoreFileChange, restoreDatabase, formatDateTime
+            };
+        }
+    };
+
     // ============================================
     // 路由配置
     // ============================================
@@ -15520,6 +15814,7 @@
         { path: '/production-return-docs', component: ProductionReturnDocumentsPage, meta: { title: '退料回库单', subtitle: '独立查询工单退料回库单据、状态与来源工单' } },
         { path: '/production-exceptions', component: ProductionExceptionDocumentsPage, meta: { title: '生产异常单', subtitle: '独立查询工单报废、补料、超领与差异异常单据' } },
         { path: '/users', component: UsersPage, meta: { title: '用户与权限', subtitle: '系统模块中的账号与权限入口' } },
+        { path: '/data-maintenance', component: DataMaintenancePage, meta: { title: '数据维护', subtitle: '管理员执行数据库备份、恢复和迁移包导出' } },
     ];
 
     const router = createRouter({
@@ -15596,6 +15891,7 @@
                 { path: '/consistency-governance', label: '数据治理', icon: 'shield-check', permission: 'reports', secondary: true },
                 { group: '系统' },
                 { path: '/system-center', label: '系统', icon: 'settings-2', permission: ['warehouses', 'users'] },
+                { path: '/data-maintenance', label: '数据维护', icon: 'database-backup', permission: 'users', secondary: true },
             ];
 
             const quickAccessItems = [

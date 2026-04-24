@@ -18,6 +18,7 @@
     "npm": ">=10 <12"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.8.0",
     "connect-sqlite3": "^0.9.15",
