@@ -71,7 +71,7 @@ if not "%TARGET_REF%"=="" (
 )
 
 echo [3/5] Installing production dependencies...
-call npm install --production
+call npm install --omit=dev
 if %errorlevel% neq 0 (
     echo [X] npm install failed
     pause

@@ -16,7 +16,7 @@ echo Backup time: 3:00 AM daily
 echo.
 
 :: Create Windows scheduled task: daily at 3:00 AM
-schtasks /create /tn "OvO System_DailyBackup" /tr "\"%BACKUP_SCRIPT%\"" /sc daily /st 03:00 /rl highest /f
+schtasks /create /tn "OvO System_DailyBackup" /tr "\"%BACKUP_SCRIPT%\" /quiet" /sc daily /st 03:00 /rl highest /f
 
 if %errorlevel% equ 0 (
     echo.

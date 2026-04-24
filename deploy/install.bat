@@ -74,7 +74,7 @@ echo.
 :: ============================================
 echo [2/5] Installing dependencies (may take a few minutes)...
 cd /d "%PROJECT_DIR%"
-call npm install --production 2>&1
+call npm install --omit=dev 2>&1
 if %errorlevel% neq 0 (
     echo [X] Dependency installation failed! Check network connection.
     echo     If in China, try setting npm mirror:
@@ -83,14 +83,11 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-:: Install Windows service manager
-call npm install --save-dev node-windows 2>&1
-
 :: Install MCP Server dependencies (for AI integration)
 if exist "%PROJECT_DIR%\mcp-server\package.json" (
     echo [*] Installing MCP Server dependencies...
     cd /d "%PROJECT_DIR%\mcp-server"
-    call npm install --production 2>&1
+    call npm install --omit=dev 2>&1
     cd /d "%PROJECT_DIR%"
 )
 echo [OK] Dependencies installed
@@ -101,8 +98,9 @@ echo.
 :: ============================================
 echo [3/5] Configuring production environment...
 if not exist "%PROJECT_DIR%\.env" (
+    for /f "usebackq delims=" %%S in (`powershell -NoProfile -Command "$b=New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); -join ($b | ForEach-Object { $_.ToString('x2') })"`) do set "GENERATED_SESSION_SECRET=%%S"
     echo PORT=3000> "%PROJECT_DIR%\.env"
-    echo SESSION_SECRET=%RANDOM%%RANDOM%%RANDOM%-maverick-production>> "%PROJECT_DIR%\.env"
+    echo SESSION_SECRET=%GENERATED_SESSION_SECRET%>> "%PROJECT_DIR%\.env"
     echo NODE_ENV=production>> "%PROJECT_DIR%\.env"
     echo COOKIE_SECURE=auto>> "%PROJECT_DIR%\.env"
     echo TRUST_PROXY=0>> "%PROJECT_DIR%\.env"
@@ -120,6 +118,12 @@ echo.
 call npm run check-env -- --strict
 if %errorlevel% neq 0 (
     echo [X] Environment compatibility check failed!
+    pause
+    exit /b 1
+)
+call npm run preflight
+if %errorlevel% neq 0 (
+    echo [X] Deployment preflight failed!
     pause
     exit /b 1
 )
@@ -167,9 +171,11 @@ echo   Account:  admin
 echo   Password: admin123
 echo.
 echo   Commands:
-echo     start.bat     - Start server
-echo     stop.bat      - Stop server
-echo     backup.bat    - Backup database
+echo     deploy\start.bat         - Start server in foreground
+echo     deploy\stop.bat          - Stop service or tracked manual process
+echo     deploy\status.bat        - Check runtime status
+echo     deploy\backup.bat        - Backup database
+echo     deploy\update-and-restart.bat - Update code and restart
 echo.
 echo   AI Integration (OpenClaw/Claude):
 echo     AI Account: ai-operator / ai123456

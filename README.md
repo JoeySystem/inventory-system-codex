@@ -194,7 +194,10 @@ npm start
 
 - [deploy/install.bat](./deploy/install.bat)
 - [deploy/start.bat](./deploy/start.bat)
+- [deploy/start-background.bat](./deploy/start-background.bat)
 - [deploy/stop.bat](./deploy/stop.bat)
+- [deploy/status.bat](./deploy/status.bat)
+- [deploy/health-check.bat](./deploy/health-check.bat)
 - [deploy/update.bat](./deploy/update.bat)
 - [deploy/update-and-restart.bat](./deploy/update-and-restart.bat)
 - [deploy/rollback.bat](./deploy/rollback.bat)

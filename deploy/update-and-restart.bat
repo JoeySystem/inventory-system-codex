@@ -15,7 +15,7 @@ cd /d "%PROJECT_DIR%"
 for /f "usebackq tokens=1,* delims==" %%A in (`node deploy/print-deploy-config.js`) do set "%%A=%%B"
 
 echo [1/6] Backing up database...
-call "%~dp0backup.bat" <nul
+call "%~dp0backup.bat" /quiet
 if %errorlevel% neq 0 (
     echo [X] Backup failed, update aborted.
     pause
@@ -38,26 +38,15 @@ if %errorlevel% neq 0 (
 )
 
 echo [4/6] Starting service...
-sc query "OvO System" >nul 2>&1
-if %errorlevel% equ 0 (
-    net start "OvO System" >nul 2>&1
-    if %errorlevel% equ 0 (
-        echo [OK] Windows service started
-        if exist "%PID_FILE%" del /q "%PID_FILE%" >nul 2>&1
-    ) else (
-        echo [!] Failed to start Windows service, falling back to manual start
-        powershell -NoProfile -Command ^
-          "$p = Start-Process -FilePath 'node' -ArgumentList 'server/index.js' -WorkingDirectory '%PROJECT_DIR%' -PassThru; New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetDirectoryName('%PID_FILE%')) | Out-Null; Set-Content -Path '%PID_FILE%' -Value $p.Id"
-    )
-) else (
-    powershell -NoProfile -Command ^
-      "$p = Start-Process -FilePath 'node' -ArgumentList 'server/index.js' -WorkingDirectory '%PROJECT_DIR%' -PassThru; New-Item -ItemType Directory -Force -Path ([System.IO.Path]::GetDirectoryName('%PID_FILE%')) | Out-Null; Set-Content -Path '%PID_FILE%' -Value $p.Id"
+call "%~dp0start-background.bat" <nul
+if %errorlevel% neq 0 (
+    echo [X] Failed to start service or manual process.
+    pause
+    exit /b 1
 )
-timeout /t 4 /nobreak >nul
 
 echo [5/6] Running health check...
-powershell -NoProfile -Command ^
-  "try { $r = Invoke-WebRequest -UseBasicParsing '%HEALTH_URL%' -TimeoutSec 5; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"
+call "%~dp0health-check.bat" 15 <nul
 if %errorlevel% neq 0 (
     echo [X] Health check failed: %HEALTH_URL%
     echo [!] Please review the server window or logs before continuing.

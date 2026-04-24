@@ -1,6 +1,7 @@
 @echo off
 title OvO System Database Backup
 
+set "QUIET_MODE=%~1"
 set "PROJECT_DIR=%~dp0.."
 set "BACKUP_DIR=%PROJECT_DIR%\backups"
 pushd "%PROJECT_DIR%"
@@ -13,7 +14,7 @@ if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
 :: Check database file
 if not exist "%DB_PATH%" (
     echo [X] Database file not found: %DB_PATH%
-    pause
+    if /i not "%QUIET_MODE%"=="/quiet" pause
     exit /b 1
 )
 
@@ -41,4 +42,4 @@ if %errorlevel% equ 0 (
 echo Cleaning up old backups (30+ days)...
 forfiles /p "%BACKUP_DIR%" /m "inventory_*.db" /d -30 /c "cmd /c echo Deleting old backup: @file && del @path" 2>nul
 
-pause
+if /i not "%QUIET_MODE%"=="/quiet" pause

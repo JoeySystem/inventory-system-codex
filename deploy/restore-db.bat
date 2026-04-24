@@ -1,11 +1,11 @@
 @echo off
 title OvO System Database Restore
+setlocal enabledelayedexpansion
 
 set "PROJECT_DIR=%~dp0.."
 set "BACKUP_DIR=%PROJECT_DIR%\backups"
-pushd "%PROJECT_DIR%"
-for /f "usebackq delims=" %%I in (`node -e "const p=require('./server/config/paths'); console.log(p.getDbPath())"`) do set "DB_PATH=%%I"
-popd
+cd /d "%PROJECT_DIR%"
+for /f "usebackq tokens=1,* delims==" %%A in (`node deploy/print-deploy-config.js`) do set "%%A=%%B"
 
 echo.
 echo   OvO System Database Restore Tool
@@ -52,7 +52,7 @@ if not exist "%RESTORE_FILE%" (
 :: Confirm
 echo.
 echo [!] WARNING: This will overwrite the current database!
-echo     Current database will be backed up as inventory_before_restore.db
+echo     Current database will be backed up before restore.
 set /p CONFIRM=Are you sure? (Y/N):
 
 if /i not "%CONFIRM%"=="Y" (
@@ -63,7 +63,8 @@ if /i not "%CONFIRM%"=="Y" (
 
 :: Backup current database
 if exist "%DB_PATH%" (
-    copy "%DB_PATH%" "%BACKUP_DIR%\inventory_before_restore.db" >nul
+    if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
+    copy "%DB_PATH%" "%BACKUP_DIR%\inventory_before_restore_!TIMESTAMP!.db" >nul
     echo [OK] Current database backed up
 )
 
@@ -71,8 +72,30 @@ if exist "%DB_PATH%" (
 call "%~dp0stop.bat" >nul 2>&1
 
 :: Restore
+if not exist "%DB_DIR%" mkdir "%DB_DIR%"
 copy /Y "%RESTORE_FILE%" "%DB_PATH%" >nul
+if %errorlevel% neq 0 (
+    echo [X] Database restore failed
+    pause
+    exit /b 1
+)
+if exist "%DB_PATH%-wal" del /q "%DB_PATH%-wal" >nul 2>&1
+if exist "%DB_PATH%-shm" del /q "%DB_PATH%-shm" >nul 2>&1
+
 echo [OK] Database restored from: %BACKUP_NAME%
 echo.
-echo Please restart the service: start.bat
+echo Starting service and checking health...
+call "%~dp0start-background.bat" <nul
+if %errorlevel% neq 0 (
+    echo [X] Failed to start service after restore
+    pause
+    exit /b 1
+)
+call "%~dp0health-check.bat" 15 <nul
+if %errorlevel% neq 0 (
+    echo [X] Health check failed after restore
+    pause
+    exit /b 1
+)
+echo [OK] Restore completed and system is healthy: %APP_BASE_URL%
 pause
